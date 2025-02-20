@@ -58,6 +58,10 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   set(jank_link_whole_start "-Wl,-force_load")
   set(jank_link_whole_end "")
+elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+  set(jank_link_whole_start "-Wl,--whole-archive")
+  set(jank_link_whole_end "-Wl,--no-whole-archive")
+
 else()
   message(FATAL_ERROR "Unsupported OS: " ${CMAKE_SYSTEM_NAME})
 endif()
@@ -76,6 +80,9 @@ set(
   -fno-common
   -fno-rtti
   -fexceptions
+  -fcxx-exceptions
+  # -fno-omit-frame-pointer
+  # -funwind-tables
   #-ftime-trace
   $<$<CONFIG:Debug>:-O0>
   $<$<CONFIG:Release>:-O2>
@@ -91,6 +98,8 @@ set(
   jank_common_compiler_flags
   -std=gnu++20
   -DIMMER_HAS_LIBGC=1 -DIMMER_TAGGED_NODE=0 -DHAVE_CXX14=1
+  -DGC_NOT_DLL
+
   #-DLIBASSERT_USE_FMT=1
   #-DLIBASSERT_STATIC_DEFINE=1
   #-stdlib=libc++
@@ -98,6 +107,7 @@ set(
 
 set(
   jank_linker_flags
+  -Wl,--export-all-symbols
   #-stdlib=libc++ -lc++abi
   )
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -140,7 +150,7 @@ endif()
 function(jank_hook_llvm target)
   set(tgt "${target}")
   target_include_directories("${tgt}" SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
-  target_compile_definitions("${tgt}" PRIVATE ${LLVM_DEFINITIONS})
+  target_compile_definitions("${tgt}" PRIVATE ${LLVM_DEFINITIONS_LIST})
   target_link_directories("${tgt}" PRIVATE ${llvm_dir}/lib)
 endfunction()
 # ---- Clang/LLVM ----
@@ -159,6 +169,7 @@ add_library(
   src/cpp/jank/util/sha256.cpp
   src/cpp/jank/util/dir.cpp
   src/cpp/jank/util/mapped_file.cpp
+  src/cpp/jank/util/process_location.cpp
   src/cpp/jank/util/scope_exit.cpp
   src/cpp/jank/util/escape.cpp
   src/cpp/jank/util/clang_format.cpp
@@ -310,12 +321,20 @@ target_compile_options(
   -DJANK_JIT_FLAGS="${jank_jit_compile_flags_str}"
   -DJANK_CLANG_PREFIX="${CLANG_INSTALL_PREFIX}"
 )
-target_link_options(jank_lib PRIVATE ${jank_linker_flags})
+# target_link_options(jank_lib PRIVATE ${jank_linker_flags})
 
 #set_target_properties(jank_lib PROPERTIES LINK_FLAGS_RELEASE "-s")
 
 # Symbol exporting for JIT.
-set_target_properties(jank_lib PROPERTIES ENABLE_EXPORTS 1)
+# set_target_properties(jank_lib PROPERTIES ENABLE_EXPORTS 1)
+# message(STATUS "Global CXX flags: ${CMAKE_CXX_FLAGS}")
+
+# get_cmake_property(_variable_names VARIABLES)
+# foreach (_var_name ${_variable_names})
+#     message(STATUS "${_var_name} = ${${_var_name}}")
+# endforeach()
+
+
 # ---- libjank.a ----
 
 # ---- libnanobench.a ----
@@ -496,9 +515,9 @@ endif()
 # change, or whenever the jank binary changes.
 set(jank_core_libraries_flag ${CMAKE_BINARY_DIR}/classes/core-libraries)
 add_custom_command(
-  DEPENDS ${CMAKE_BINARY_DIR}/jank ${CMAKE_SOURCE_DIR}/src/jank/clojure/core.jank
+  DEPENDS ${CMAKE_BINARY_DIR}/jank${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/src/jank/clojure/core.jank
   OUTPUT ${jank_core_libraries_flag}
-  COMMAND ${CMAKE_BINARY_DIR}/jank compile clojure.core
+  COMMAND ${CMAKE_BINARY_DIR}/jank${CMAKE_EXECUTABLE_SUFFIX} compile clojure.core
   COMMAND touch ${jank_core_libraries_flag}
 )
 add_custom_target(

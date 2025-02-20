@@ -10,6 +10,73 @@
 #include <jank/profile/time.hpp>
 #include <jank/util/scope_exit.hpp>
 
+#include <fstream>
+#include <libunwind.h>
+
+// #include <cxxabi.h>
+// #include <typeinfo>
+
+#include <clang/Interpreter/Interpreter.h>
+#include <clang/Frontend/CompilerInstance.h>
+
+#include <llvm/ExecutionEngine/ExecutionEngine.h>
+#include <llvm/ExecutionEngine/GenericValue.h>
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/IRBuilder.h>
+#include "llvm/Support/ManagedStatic.h"
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/TargetParser/Host.h>
+
+#include <iostream>
+
+std::unique_ptr<llvm::Module> moduleMake(llvm::LLVMContext& context, const std::string& moduleName, std::string exc_fn, std::string wrapper = "wrapper") {
+  std::unique_ptr<llvm::Module> module = std::make_unique<llvm::Module>(moduleName, context);
+  llvm::IRBuilder<> builder(context);
+
+  module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
+
+  auto const voidFnType(llvm::FunctionType::get(builder.getVoidTy(), {}, false));
+
+  
+  llvm::FunctionCallee excThrowFn(module->getOrInsertFunction(exc_fn, voidFnType));
+  auto excThrowFunc = llvm::cast<llvm::Function>(excThrowFn.getCallee());
+
+  llvm::Function *wrapperFunc = llvm::Function::Create(voidFnType, llvm::Function::ExternalLinkage, wrapper, *module);
+  llvm::BasicBlock *wrapperBB = llvm::BasicBlock::Create(context, "entry", wrapperFunc);
+  builder.SetInsertPoint(wrapperBB);
+  builder.CreateCall(excThrowFunc);
+  builder.CreateRetVoid();
+
+  module->print(llvm::errs(), nullptr);
+
+  return module;
+}
+
+extern "C" {
+    void* __cxa_allocate_exception(std::size_t thrown_size);
+    void __cxa_throw(void *thrown_exception, std::type_info *tinfo, void (*dest)(void*));
+}
+void printStackTrace(std::ofstream& out) {
+    unw_cursor_t cursor;
+    unw_context_t context;
+
+    unw_getcontext(&context);
+    unw_init_local(&cursor, &context);
+
+    while (unw_step(&cursor) > 0) {
+        unw_word_t offset, pc;
+        char symbol[256];
+
+        unw_get_reg(&cursor, UNW_REG_IP, &pc);
+        if (unw_get_proc_name(&cursor, symbol, sizeof(symbol), &offset) == 0) {
+            out << symbol << " + 0x" << std::hex << offset << std::endl;
+        } else {
+            out << "Unknown function at 0x" << std::hex << pc << std::endl;
+        }
+    }
+}
 using namespace jank;
 using namespace jank::runtime;
 
@@ -871,9 +938,76 @@ extern "C"
       o_obj);
   }
 
+void ioprint(jank_object_ptr const o
+             ) {
+    std::ofstream out("io.out", std::ios::app);
+
+    unw_cursor_t cursor;
+    unw_context_t context;
+
+    unw_getcontext(&context);
+    unw_init_local(&cursor, &context);
+
+    while (unw_step(&cursor) > 0) {
+        unw_word_t offset, pc;
+        char symbol[256];
+
+        unw_get_reg(&cursor, UNW_REG_IP, &pc);
+        if (unw_get_proc_name(&cursor, symbol, sizeof(symbol), &offset) == 0) {
+            out << symbol << " + 0x" << std::hex << offset << std::endl;
+        } else {
+            out << "Unknown function at 0x" << std::hex << pc << std::endl;
+        }
+    }
+    throw runtime::object_ptr{ reinterpret_cast<object *>(o) };
+}
+
+  // void jank_throw2(jank_object_ptr const o)
+  // {
+  //   // void* exception = __cxa_allocate_exception(sizeof(runtime::object_ptr));
+
+  //   // 2. Initialize the exception object with data (in this case, an int)
+  //   auto x = runtime::object_ptr{ reinterpret_cast<object *>(o) };
+  //   // *static_cast<jank_object_ptr*>(exception) = x;
+
+  //   // 3. Get the type info for the exception type
+  //   // std::type_info* type_info = &typeid(int);  // We use typeid to get type info for int
+
+  //   // 4. Call __cxa_throw to throw the exception
+  //   __cxa_throw(static_cast<void*>(x), nullptr, nullptr);
+  // }
+
+  void exception_throw_jit() {
+    std::cout << ":throwing-exception...\n";
+    // __orc_rt_coff_cxx_throw_exception(nullptr, nullptr);
+    throw "issue";
+  }
+
   void jank_throw(jank_object_ptr const o)
   {
-    throw runtime::object_ptr{ reinterpret_cast<object *>(o) };
+
+    std::cout << ":1\n";
+    static llvm::LLVMContext context;
+    static std::unique_ptr<llvm::Module> module = moduleMake(context, "direct-module2", "exception_throw_jit", "wrapper2");
+
+    static std::string errStr;
+    static llvm::ExecutionEngine *engine = llvm::EngineBuilder(std::move(module)).setErrorStr(&errStr).create();
+    if (!engine) {
+      std::cerr << "Error: " << errStr << std::endl;
+      return;
+    }
+
+    static llvm::Function* wrapperFunc = engine->FindFunctionNamed("wrapper2");
+    assert(wrapperFunc);
+    (void)o;
+    std::vector<llvm::GenericValue> noArgs;
+    std::cout << ":wrapper2-calling...\n";
+    engine->runFunction(wrapperFunc, noArgs);
+    std::cout << ":wrapper2-calling-done\n";
+
+
+
+    // throw runtime::object_ptr{ reinterpret_cast<object *>(o) };
   }
 
   jank_object_ptr jank_try(jank_object_ptr const try_fn,

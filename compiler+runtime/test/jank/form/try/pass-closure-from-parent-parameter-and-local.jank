@@ -1,8 +1,13 @@
-((fn* [a]
-  (let [b 1]
-    (try
-      (throw (= a b))
-      (catch r
-        (when (and r (= 1 b))
-          :success)))))
- 1)
+
+;; ((fn* [a]
+;;   (let [b 1]
+;;     (try
+;;       (throw (= a b))
+;;       (catch r
+;;         (when (and r (= 1 b))
+;;           :success)))))
+;;  1)
+
+;; (let [a "abc"]) (throw a)
+((fn* [] (throw false)))
+

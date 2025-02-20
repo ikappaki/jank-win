@@ -5,6 +5,7 @@
 #endif
 
 #include <string>
+#include <iostream>
 
 #include <boost/filesystem.hpp>
 
@@ -12,6 +13,8 @@
 
 namespace jank::util
 {
+  std::string process_loc_win();
+
   /* TODO: Put this in a cpp file. */
   inline option<boost::filesystem::path> process_location()
 #if defined(__APPLE__)
@@ -36,7 +39,11 @@ namespace jank::util
   }
 #else
   {
-    static_assert(false, "Unsupported platform");
+    std::string path = process_loc_win();
+    std::cout << ":path " << path << std::endl;
+    return boost::filesystem::canonical(path);
+
+    // static_assert(false, "Unsupported platform");
   }
 #endif
 }

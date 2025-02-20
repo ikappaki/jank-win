@@ -1,6 +1,7 @@
-#include <sys/mman.h>
+// #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <memoryapi.h>
 
 #include <iostream>
 
@@ -32,7 +33,7 @@ namespace jank::util
     if(head != nullptr)
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast): I want const everywhere else.
     {
-      munmap(reinterpret_cast<void *>(const_cast<char *>(head)), size);
+      // munmap(reinterpret_cast<void *>(const_cast<char *>(head)), size);
     }
     if(fd >= 0)
     {
@@ -53,14 +54,25 @@ namespace jank::util
     {
       return err("unable to open file");
     }
-    auto const * const head(
-      reinterpret_cast<char const *>(mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0)));
+
+    std::cout << ":mapping " << path.data() << std::endl;
+    char* buffer = new char[file_size];
+    if (read(fd, buffer, file_size) == -1)
+      {
+        return err("unable to read file");
+      }
+
+    char const * const head(buffer);
+    // char const * const head(nullptr);
+      // reinterpret_cast<char const *>(nullptr// mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0)
+      //                                ));
 
     /* MAP_FAILED is a macro which does a C-style cast. */
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wold-style-cast"
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast,performance-no-int-to-ptr)
-    if(head == MAP_FAILED)
+    // if(head == MAP_FAILED)
+    if(head == nullptr)
 #pragma clang diagnostic pop
     {
       return err("unable to map file");

@@ -28,7 +28,7 @@ namespace jank::runtime::module
   /* This turns `foo_bar/spam/meow.cljc` into `foo-bar.spam.meow`. */
   native_persistent_string path_to_module(boost::filesystem::path const &path)
   {
-    static std::regex const slash{ "/" };
+    static std::regex const slash{ "\\\\" };
 
     auto const &s(runtime::demunge(path.string()));
     std::string ret{ s, 0, s.size() - path.extension().size() };
@@ -45,7 +45,7 @@ namespace jank::runtime::module
   native_persistent_string module_to_path(native_persistent_string_view const &module)
   {
     static native_persistent_string const dot{ "\\." };
-    return runtime::munge_extra(module, dot, "/");
+    return runtime::munge_extra(module, dot, "\\\\");
   }
 
   native_persistent_string module_to_load_function(native_persistent_string_view const &module)
@@ -287,9 +287,9 @@ namespace jank::runtime::module
   {
     auto const jank_path(jank::util::process_location().unwrap().parent_path());
     native_transient_string paths{ ps };
-    paths += fmt::format(":{}", (jank_path / "classes").string());
-    paths += fmt::format(":{}", (jank_path / "../src/jank").string());
-    paths += fmt::format(":{}", rt_ctx.output_dir);
+    paths += fmt::format(";{}", (jank_path / "classes").string());
+    paths += fmt::format(";{}", (jank_path / "../src/jank").string());
+    paths += fmt::format(";{}", rt_ctx.output_dir);
     this->paths = paths;
 
     //fmt::println("module paths: {}", paths);

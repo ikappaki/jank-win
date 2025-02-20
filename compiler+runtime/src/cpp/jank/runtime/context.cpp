@@ -300,13 +300,30 @@ namespace jank::runtime
     };
     boost::filesystem::create_directories(module_path.parent_path());
 
+    std::string mp;
+
+    const std::wstring& wstr = module_path.c_str();
+    const wchar_t *p = wstr.c_str();
+    std::mbstate_t state = std::mbstate_t();
+    size_t len = wcsrtombs(nullptr, &p, 0, &state) + 1;
+    char* cstr = new char[len];
+    wcsrtombs(cstr, &p, len, &state);
+    mp = cstr;
+    delete[] cstr;
+
+    // std::wstring wide = module_path.c_str();
+    // std::transform(wide.begin(), wide.end(), std::back_inserter(mp), [] (wchar_t c) {
+    //   return reinterpret_cat<char>c;
+    // });
+
     /* TODO: Is there a better place for this block of code? */
     std::error_code file_error{};
-    llvm::raw_fd_ostream os(module_path.c_str(), file_error, llvm::sys::fs::OpenFlags::OF_None);
+    std::cout << ":module-path " << mp.c_str() << std::endl;
+    llvm::raw_fd_ostream os(mp.c_str(), file_error, llvm::sys::fs::OpenFlags::OF_None);
     if(file_error)
     {
       return err(fmt::format("failed to open module file {} with error {}",
-                             module_path.c_str(),
+                             mp.c_str(),
                              file_error.message()));
     }
     // codegen_ctx->module->print(llvm::outs(), nullptr);

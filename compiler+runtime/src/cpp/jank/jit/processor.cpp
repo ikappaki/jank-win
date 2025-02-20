@@ -29,6 +29,10 @@ namespace jank::jit
   {
     return fmt::format("lib{}.so", lib);
   }
+#else
+  {
+    return fmt::format("lib{}.dll", lib);
+  }
 #endif
 
   static void handle_fatal_llvm_error(void * const user_data,
