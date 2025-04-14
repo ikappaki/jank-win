@@ -986,28 +986,29 @@ void ioprint(jank_object_ptr const o
   void jank_throw(jank_object_ptr const o)
   {
 
-    std::cout << ":1\n";
-    static llvm::LLVMContext context;
-    static std::unique_ptr<llvm::Module> module = moduleMake(context, "direct-module2", "exception_throw_jit", "wrapper2");
+    // std::cout << ":1\n";
+    // static llvm::LLVMContext context;
+    // static std::unique_ptr<llvm::Module> module = moduleMake(context, "direct-module2", "exception_throw_jit", "wrapper2");
 
-    static std::string errStr;
-    static llvm::ExecutionEngine *engine = llvm::EngineBuilder(std::move(module)).setErrorStr(&errStr).create();
-    if (!engine) {
-      std::cerr << "Error: " << errStr << std::endl;
-      return;
-    }
+    // static std::string errStr;
+    // static llvm::ExecutionEngine *engine = llvm::EngineBuilder(std::move(module)).setErrorStr(&errStr).create();
+    // if (!engine) {
+    //   std::cerr << "Error: " << errStr << std::endl;
+    //   return;
+    // }
 
-    static llvm::Function* wrapperFunc = engine->FindFunctionNamed("wrapper2");
-    assert(wrapperFunc);
-    (void)o;
-    std::vector<llvm::GenericValue> noArgs;
-    std::cout << ":wrapper2-calling...\n";
-    engine->runFunction(wrapperFunc, noArgs);
-    std::cout << ":wrapper2-calling-done\n";
+    // static llvm::Function* wrapperFunc = engine->FindFunctionNamed("wrapper2");
+    // assert(wrapperFunc);
+    // (void)o;
+    // std::vector<llvm::GenericValue> noArgs;
+    // std::cout << ":wrapper2-calling...\n";
+    // engine->runFunction(wrapperFunc, noArgs);
+    // std::cout << ":wrapper2-calling-done\n";
 
 
-
-    // throw runtime::object_ptr{ reinterpret_cast<object *>(o) };
+    // (void)o;
+    // return;
+    throw runtime::object_ptr{ reinterpret_cast<object *>(o) };
   }
 
   jank_object_ptr jank_try(jank_object_ptr const try_fn,

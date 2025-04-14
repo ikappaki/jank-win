@@ -291,7 +291,7 @@ include(cmake/dependency/ftxui.cmake)
 include(cmake/dependency/libzippp.cmake)
 
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
-find_package(Boost CONFIG REQUIRED COMPONENTS filesystem)
+find_package(Boost CONFIG REQUIRED COMPONENTS filesystem iostreams)
 find_package(BDWgc REQUIRED)
 
 target_link_libraries(
@@ -303,6 +303,7 @@ target_link_libraries(
   clang
   clang-cpp
   LLVM
+  Boost::iostreams
   Boost::filesystem
   ftxui::screen ftxui::dom
   OpenSSL::Crypto

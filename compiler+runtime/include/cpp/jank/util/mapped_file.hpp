@@ -3,6 +3,8 @@
 #include <cstdlib> // size_t
 #include <string>
 
+#include <boost/iostreams/device/mapped_file.hpp>
+
 #include <jank/result.hpp>
 
 namespace jank::util
@@ -12,10 +14,10 @@ namespace jank::util
     mapped_file() = default;
     mapped_file(mapped_file const &) = delete;
     mapped_file(mapped_file &&) noexcept;
-    mapped_file(int const f, char const * const h, size_t const s);
+    mapped_file(boost::iostreams::mapped_file_source mfs, char const * const h, size_t const s);
     ~mapped_file();
 
-    int fd{};
+    boost::iostreams::mapped_file_source mfs;
     char const *head{};
     size_t size{};
   };

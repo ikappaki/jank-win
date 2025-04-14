@@ -901,6 +901,10 @@ namespace jank::codegen
   llvm::Value *llvm_processor::gen(expr::throw_<expression> const &expr,
                                    expr::function_arity<expression> const &arity)
   {
+
+    // auto const value(gen(expr.value, arity));
+    // return value;
+
     /* TODO: Generate direct call to __cxa_throw. */
     auto const value(gen(expr.value, arity));
     auto const fn_type(

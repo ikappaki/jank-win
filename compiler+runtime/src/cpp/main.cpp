@@ -175,7 +175,7 @@ namespace jank
           ofs << input;
         }
 
-        auto const res(__rt_ctx->eval_file(path.c_str()));
+        auto const res(__rt_ctx->eval_file(path.string()));
         fmt::println("{}", runtime::to_code_string(res));
       }
       /* TODO: Unify error handling. JEEZE! */
