@@ -24,7 +24,7 @@ namespace jank::util
       return std::string();
     }
     std::string spath(path, size);
-    std::cout << ":process-loc-win " << spath << std::endl;
+    // std::cout << ":process-loc-win " << spath << std::endl;
 
     return spath;
   }

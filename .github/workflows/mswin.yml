@@ -1,0 +1,49 @@
+name: Run tests
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  run-tests:
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+        
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          install: >-
+            clang64/mingw-w64-clang-x86_64-git-lfs
+            clang64/mingw-w64-clang-x86_64-llvm
+            clang64/mingw-w64-clang-x86_64-clang
+            clang64/mingw-w64-clang-x86_64-clang-tools-extra
+            clang64/mingw-w64-clang-x86_64-cmake
+            clang64/mingw-w64-clang-x86_64-dlfcn
+            clang64/mingw-w64-clang-x86_64-boost
+            clang64/mingw-w64-clang-x86_64-libffi
+            clang64/mingw-w64-clang-x86_64-doctest
+            clang64/mingw-w64-clang-x86_64-libzip
+            clang64/mingw-w64-clang-x86_64-gc            
+          
+      - shell: msys2 {0}
+        run: |
+          uname -a
+          echo $MSYSTEM
+          cd compiler+runtime
+          ./bin/configure -GNinja -DCMAKE_BUILD_TYPE=Debug -Djank_tests=on
+          ./bin/compile
+          echo "(println :hi) 5" > hi.jank
+          ./build/jank.exe run hi.jank

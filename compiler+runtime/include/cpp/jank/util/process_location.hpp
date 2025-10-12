@@ -40,7 +40,7 @@ namespace jank::util
 #else
   {
     std::string path = process_loc_win();
-    std::cout << ":path " << path << std::endl;
+    // std::cout << ":path " << path << std::endl;
     return boost::filesystem::canonical(path);
 
     // static_assert(false, "Unsupported platform");
