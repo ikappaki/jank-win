@@ -1,6 +1,6 @@
 [submodule "compiler+runtime/third-party/folly"]
 	path = compiler+runtime/third-party/folly
-	url = https://github.com/jank-lang/folly.git
+	url = https://github.com/ikappaki/jank-folly.git
 [submodule "compiler+runtime/third-party/bpptree"]
 	path = compiler+runtime/third-party/bpptree
 	url = https://github.com/jank-lang/BppTree.git
@@ -27,7 +27,7 @@
 	url = https://github.com/jank-lang/cpptrace
 [submodule "compiler+runtime/third-party/cppinterop"]
 	path = compiler+runtime/third-party/cppinterop
-	url = https://github.com/jank-lang/CppInterOp.git
+	url = https://github.com/ikappaki/CppInterOp.git
 [submodule "compiler+runtime/third-party/boost-multiprecision"]
 	path = compiler+runtime/third-party/boost-multiprecision
 	url = https://github.com/jank-lang/boost-multiprecision.git

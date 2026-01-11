@@ -374,14 +374,14 @@ namespace jank::runtime
     profile::timer const timer{ util::format("write_module {}", module_name) };
     std::filesystem::path const module_path{
       util::cli::opts.output_object_filename.empty()
-        ? util::format("{}/{}.o", binary_cache_dir, module::module_to_path(module_name))
-        : jtl::immutable_string{ util::cli::opts.output_object_filename }
+        ? std::string(util::format("{}/{}.o", binary_cache_dir, module::module_to_path(module_name)))
+        : std::string(jtl::immutable_string{ util::cli::opts.output_object_filename })
     };
     std::filesystem::create_directories(module_path.parent_path());
 
     /* TODO: Is there a better place for this block of code? */
     std::error_code file_error{};
-    llvm::raw_fd_ostream os(module_path.c_str(), file_error, llvm::sys::fs::OpenFlags::OF_None);
+    llvm::raw_fd_ostream os(module_path.string(), file_error, llvm::sys::fs::OpenFlags::OF_None);
     if(file_error)
     {
       return err(util::format("failed to open module file {} with error {}",

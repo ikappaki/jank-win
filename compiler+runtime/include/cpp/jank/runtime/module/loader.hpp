@@ -2,6 +2,8 @@
 
 #include <filesystem>
 
+#include <boost/iostreams/device/mapped_file.hpp>
+
 #include <jank/runtime/object.hpp>
 #include <jtl/result.hpp>
 
@@ -68,7 +70,7 @@ namespace jank::runtime::module
     file_view() = default;
     file_view(file_view const &) = delete;
     file_view(file_view &&) noexcept;
-    file_view(int const f, char const * const h, usize const s);
+    file_view(boost::iostreams::mapped_file_source mfs, char const * const h, usize const s);
     file_view(jtl::immutable_string const &buff);
     ~file_view();
 
@@ -80,7 +82,7 @@ namespace jank::runtime::module
   private:
     /* In the case where we map a file, we track this information so we can read it and
      * later unmap it. */
-    int fd{};
+    boost::iostreams::mapped_file_source mfs;
     char const *head{};
     usize len{};
 

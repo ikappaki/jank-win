@@ -5,4 +5,11 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 build_dir="${here}/../build"
 
+# echo :build-dir ${build_dir}
+# ninja -C "${build_dir}" CMakeFiles/jank_lib.dir/src/cpp/jank/codegen/llvm_processor.cpp.obj
+# cmake --build "${build_dir}" "$@" --target CMakeFiles/jank_lib.dir/src/cpp/jank/codegen/llvm_processor.cpp.obj
+# cmake --build "${build_dir}" "$@" --target  third-party/ftxui/libftxui-screen.a
+# cmake --graphviz=deps.dot "${build_dir}"
+# cmake --build "${build_dir}" --verbose "$@" -- -j1
+#cmake --build "${build_dir}" --verbose "$@"
 cmake --build "${build_dir}" "$@"

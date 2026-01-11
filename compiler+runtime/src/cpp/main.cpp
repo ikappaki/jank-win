@@ -162,8 +162,9 @@ namespace jank
      * to later review that for error reporting. We automatically clean it up
      * and we reuse the same file over and over. */
     auto const tmp{ std::filesystem::temp_directory_path() };
-    std::string path_tmp{ tmp / "jank-repl-XXXXXX" };
-    mkstemp(path_tmp.data());
+    std::string path_tmp{ (tmp / "jank-repl-XXXXXX").string() };
+    int fd = mkstemp(path_tmp.data());
+    close(fd);
 
     /* TODO: Completion. */
     /* TODO: Syntax highlighting. */

@@ -32,10 +32,10 @@ namespace jank::util
   static bool is_clang_correct_version(std::filesystem::path const &path)
   {
     auto const tmp{ std::filesystem::temp_directory_path() };
-    std::string path_tmp{ tmp / "jank-clang-XXXXXX" };
+    std::string path_tmp = (tmp / "jank-clang-XXXXXX").string();
     mkstemp(path_tmp.data());
-    auto const proc_code{ llvm::sys::ExecuteAndWait(path.c_str(),
-                                                    { path.c_str(), "--version" },
+    auto const proc_code{ llvm::sys::ExecuteAndWait(path.string().c_str(),
+                                                    { path.string().c_str(), "--version" },
                                                     std::nullopt,
                                                     { std::nullopt, path_tmp, std::nullopt }) };
     if(proc_code < 0)
@@ -91,20 +91,20 @@ namespace jank::util
     std::filesystem::path const configured_path{ JANK_CLANG_PATH };
     if(std::filesystem::exists(configured_path))
     {
-      return result = configured_path.c_str();
+      return result = configured_path.string().c_str();
     }
 
     std::filesystem::path const resource_dir{ util::resource_dir().c_str() };
     std::filesystem::path const installed_path{ resource_dir / "bin/clang++" };
     if(std::filesystem::exists(installed_path))
     {
-      return result = installed_path.c_str();
+      return result = installed_path.string();
     }
 
     std::filesystem::path const cxx_path{ getenv("CXX") ?: "" };
     if(std::filesystem::exists(cxx_path) && is_clang_correct_version(cxx_path))
     {
-      return result = cxx_path.c_str();
+      return result = cxx_path.string();
     }
 
     auto const versioned_path{ llvm::sys::findProgramByName("clang++-" JANK_CLANG_MAJOR_VERSION) };
@@ -227,7 +227,7 @@ namespace jank::util
     auto dev_path{ jank_path / "incremental.pch" };
     if(std::filesystem::exists(dev_path))
     {
-      return dev_path.c_str();
+      return dev_path.string();
     }
 
     std::string const installed_path{ format("{}/incremental.pch",
@@ -260,11 +260,11 @@ namespace jank::util
                        include_path.c_str(),
                        install_path)));
       }
-      include_path = install_path;
+      include_path = install_path.c_str();
     }
 
     std::filesystem::path const output_path{ format("{}/incremental.pch",
-                                                    user_cache_dir(binary_version)) };
+                                                    user_cache_dir(binary_version)).c_str() };
     std::filesystem::create_directories(output_path.parent_path());
 
     args.emplace_back("-Xclang");
@@ -282,9 +282,9 @@ namespace jank::util
     args.emplace_back("-x");
     args.emplace_back("c++-header");
     args.emplace_back("-o");
-    args.emplace_back(output_path.c_str());
+    args.emplace_back(output_path.string().c_str());
     args.emplace_back("-c");
-    args.emplace_back(include_path.c_str());
+    args.emplace_back(include_path.string().c_str());
     /* We need to add this again for it to get through. Not sure why. */
     args.emplace_back("-std=gnu++20");
 
@@ -299,7 +299,7 @@ namespace jank::util
     }
 
     println(stderr, "done!");
-    return ok(output_path.c_str());
+    return ok(output_path.string().c_str());
   }
 
   jtl::immutable_string default_target_triple()
