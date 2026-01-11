@@ -73,6 +73,9 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   set(jank_link_whole_start "-Wl,-force_load")
   set(jank_link_whole_end "")
+elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+  set(jank_link_whole_start "-Wl,--whole-archive")
+  set(jank_link_whole_end "-Wl,--no-whole-archive")
 else()
   message(FATAL_ERROR "Unsupported OS: " ${CMAKE_SYSTEM_NAME})
 endif()
@@ -101,6 +104,7 @@ set(
   -DIMMER_HAS_LIBGC=1 -DIMMER_TAGGED_NODE=0 -DHAVE_CXX14=1
   -DCPPINTEROP_USE_REPL
   -DFOLLY_HAVE_JEMALLOC=0 -DFOLLY_HAVE_TCMALLOC=0 -DFOLLY_ASSUME_NO_JEMALLOC=1 -DFOLLY_ASSUME_NO_TCMALLOC=1
+  -DGC_NOT_DLL
   #-DLIBASSERT_STATIC_DEFINE=1
   #-stdlib=libc++
 )
@@ -109,6 +113,10 @@ set(
   jank_linker_flags
   #-stdlib=libc++ -lc++abi
   )
+
+if(WIN32)
+  list(APPEND jank_linker_flags "-Wl,--export-all-symbols")
+endif()
 
 # If the user opts into a specific build type, we will provide sane defaults. However, for
 # packaging, we can expect that CMAKE_BUILD_TYPE=None will be used and packagers will provide
@@ -167,7 +175,7 @@ endif()
 function(jank_hook_llvm target)
   set(tgt "${target}")
   target_include_directories("${tgt}" SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
-  target_compile_definitions("${tgt}" PRIVATE ${LLVM_DEFINITIONS})
+  target_compile_definitions("${tgt}" PRIVATE ${LLVM_DEFINITIONS_LIST})
   target_link_directories("${tgt}" PRIVATE ${llvm_dir}/lib)
 endfunction()
 # ---- Clang/LLVM ----
@@ -290,8 +298,16 @@ set_target_properties(nanobench_lib PROPERTIES ENABLE_EXPORTS 1)
 # a couple of other custom commands, including a command to merge all of the
 # object files seen into the final library.
 
+
+if(WIN32) # Use wrapper ar-merge.bat script if on MSYS2
+  configure_file(bin/ar-merge.bat ar-merge.bat USE_SOURCE_PERMISSIONS @ONLY)
+  set(EXT_AR ".bat")
+else()
+  set(EXT_AR "")
+endif()
+
 configure_file(bin/ar-merge ar-merge USE_SOURCE_PERMISSIONS @ONLY)
-set(CMAKE_AR "${CMAKE_BINARY_DIR}/ar-merge")
+set(CMAKE_AR "${CMAKE_BINARY_DIR}/ar-merge${EXT_AR}")
 set(jank_lib_standalone_deps
   jank_lib
   libzippp::libzippp
@@ -308,7 +324,7 @@ add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/libjank-standalone-phase-1.a
   COMMAND_EXPAND_LISTS
   VERBATIM
-  COMMAND "${CMAKE_BINARY_DIR}/ar-merge" merge
+  COMMAND "${CMAKE_BINARY_DIR}/ar-merge${EXT_AR}" merge
 )
 add_custom_target(
   jank_lib_standalone_phase_1
@@ -322,7 +338,7 @@ add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/libjank-standalone.a
   COMMAND_EXPAND_LISTS
   VERBATIM
-  COMMAND "${CMAKE_BINARY_DIR}/ar-merge" merge-phase-2
+  COMMAND "${CMAKE_BINARY_DIR}/ar-merge${EXT_AR}" merge-phase-2
 )
 add_custom_target(
   jank_lib_standalone_phase_2
@@ -344,6 +360,7 @@ include(cmake/dependency/boost-multiprecision.cmake)
 
 find_package(LibZip REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+find_package(Boost CONFIG REQUIRED COMPONENTS iostreams)
 # ---- Other dependencies ----
 
 # ---- libjank.a ----
@@ -534,6 +551,7 @@ target_include_directories(
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cpptrace/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cppinterop/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cppinterop/lib>"
+  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/boost-iostreams/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/boost-preprocessor/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/boost-multiprecision/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/stduuid/include/>"
@@ -547,10 +565,15 @@ target_link_libraries(
   libzippp::libzippp
   cpptrace::cpptrace
   ftxui::screen ftxui::dom
+  Boost::iostreams
   Boost::multiprecision
   nanobench_lib
   bdwgc::gc bdwgc::gctba
 )
+
+if(WIN32)
+  target_link_libraries(jank_lib PRIVATE dbghelp ws2_32)
+endif()
 
 jank_hook_llvm(jank_lib)
 
@@ -576,7 +599,18 @@ foreach(dir ${jank_lib_includes_prop})
   endif()
 endforeach()
 
-set(jank_lib_linker_flags_list "")
+set(jank_lib_linker_flags_list "-lboost_iostreams-mt")
+
+# Get the full library path from the imported target
+get_target_property(boost_io_lib Boost::iostreams IMPORTED_LOCATION_RELEASE)
+
+if(WIN32)
+  list(APPEND jank_lib_linker_flags_list
+    -lws2_32
+    -ldbghelp
+  )
+endif()
+
 get_target_property(jank_lib_link_dirs_prop jank_lib LINK_DIRECTORIES)
 foreach(lib ${jank_lib_link_dirs_prop})
   list(APPEND jank_lib_linker_flags_list -L${lib})
@@ -634,6 +668,15 @@ set(
   third-party/folly/folly/memory/folly_stubs.cpp
 )
 
+if(WIN32)
+  list(APPEND folly_sources
+    third-party/folly/folly/net/NetOps.cpp
+    third-party/folly/folly/net/detail/SocketFileDescriptorMap.cpp
+    third-party/folly/folly/portability/Sockets.cpp
+    third-party/folly/folly/portability/Unistd.cpp
+  )
+endif()
+
 add_library(folly_lib STATIC ${folly_sources})
 
 # Not our code. Don't try to lint it.
@@ -681,13 +724,29 @@ target_include_directories(jank_exe_phase_1 SYSTEM PRIVATE "$<TARGET_PROPERTY:ja
 target_link_directories(jank_exe_phase_1 PRIVATE "$<TARGET_PROPERTY:jank_lib,LINK_DIRECTORIES>")
 target_link_options(jank_exe_phase_1 PRIVATE ${jank_linker_flags} -L ${CMAKE_BINARY_DIR})
 
+if(WIN32)
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/third-party/nullprogram/libchkstk.a"
+       DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+endif()
+
 target_link_libraries(
   jank_exe_phase_1 PUBLIC
   ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libjank-standalone-phase-1.a ${jank_link_whole_end}
   libzip::zip z
   LLVM clang-cpp
   OpenSSL::Crypto
+  Boost::iostreams
 )
+
+if(WIN32)
+  target_link_libraries(
+    jank_exe_phase_1 PUBLIC
+    ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
+
+    ws2_32
+    dbghelp
+  )
+endif()
 
 jank_hook_llvm(jank_exe_phase_1)
 
@@ -728,10 +787,10 @@ if(jank_enable_phase_2)
   #set_target_properties(jank_exe_phase_2 PROPERTIES LINK_FLAGS_RELEASE "-s")
 else()
   add_custom_command(
-    DEPENDS ${CMAKE_BINARY_DIR}/jank-phase-1 ${jank_clojure_core_o} ${jank_incremental_pch_flag}
+    DEPENDS ${CMAKE_BINARY_DIR}/jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} ${jank_clojure_core_o} ${jank_incremental_pch_flag}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     OUTPUT ${CMAKE_BINARY_DIR}/jank
-    COMMAND ln -sf jank-phase-1 jank
+    COMMAND ${CMAKE_COMMAND} -E create_symlink jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} jank
   )
   add_custom_target(
     jank_exe_phase_2
@@ -789,7 +848,18 @@ if(jank_test)
     LLVM clang-cpp
     OpenSSL::Crypto
     doctest::doctest
+    Boost::iostreams
   )
+
+  if(WIN32)
+    target_link_libraries(
+      jank_test_exe PUBLIC
+      ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
+
+      ws2_32
+      dbghelp
+    )
+  endif()
 
   jank_hook_llvm(jank_test_exe)
 
@@ -813,7 +883,7 @@ set(jank_incremental_pch_flag ${CMAKE_BINARY_DIR}/incremental.pch)
 separate_arguments(jank_incremental_pch_cxx_flags UNIX_COMMAND ${CMAKE_CXX_FLAGS})
 list(REMOVE_ITEM jank_incremental_pch_cxx_flags -fPIC)
 add_custom_command(
-  DEPENDS ${CMAKE_BINARY_DIR}/jank-phase-1
+  DEPENDS ${CMAKE_BINARY_DIR}/jank-phase-1${CMAKE_EXECUTABLE_SUFFIX}
   OUTPUT ${jank_incremental_pch_flag}
   COMMAND_EXPAND_LISTS
   VERBATIM
@@ -848,10 +918,10 @@ add_custom_target(
 # change, or whenever the jank binary changes.
 set(jank_core_libraries_flag "${CMAKE_BINARY_DIR}/classes/core-libraries")
 add_custom_command(
-  DEPENDS ${CMAKE_BINARY_DIR}/jank-phase-1 ${CMAKE_SOURCE_DIR}/src/jank/clojure/core.jank ${jank_incremental_pch_flag}
+  DEPENDS ${CMAKE_BINARY_DIR}/jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/src/jank/clojure/core.jank ${jank_incremental_pch_flag}
   OUTPUT ${jank_core_libraries_flag}
   BYPRODUCTS ${jank_clojure_core_o}
-  COMMAND ${CMAKE_BINARY_DIR}/jank-phase-1 compile-module -o ${jank_clojure_core_o} clojure.core
+  COMMAND ${CMAKE_BINARY_DIR}/jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} compile-module -o ${jank_clojure_core_o} clojure.core
   COMMAND touch ${jank_core_libraries_flag}
 )
 add_custom_target(

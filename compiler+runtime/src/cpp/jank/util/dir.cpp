@@ -15,6 +15,10 @@
 #include <jank/util/cli.hpp>
 #include <jank/util/fmt.hpp>
 
+#ifdef _WIN32
+#  include <windows.h>
+#endif
+
 namespace jank::util
 {
   jtl::immutable_string const &user_home_dir()
@@ -144,6 +148,15 @@ namespace jank::util
     return std::filesystem::canonical(path).string();
 #elif defined(__linux__)
     return std::filesystem::canonical("/proc/self/exe").string();
+#elif defined(_WIN32)
+    char path[MAX_PATH];
+    DWORD size = GetModuleFileNameA(NULL, path, MAX_PATH);
+
+    if (size == 0) {
+      return std::string();
+    }
+    const std::string spath(path, size);
+    return spath;
 #else
     static_assert(false, "Unsupported platform");
 #endif
@@ -151,7 +164,7 @@ namespace jank::util
 
   jtl::immutable_string process_dir()
   {
-    return std::filesystem::path{ process_path().c_str() }.parent_path().c_str();
+    return std::filesystem::path{ process_path().c_str() }.parent_path().string();
   }
 
   jtl::immutable_string resource_dir()
@@ -159,13 +172,13 @@ namespace jank::util
     std::filesystem::path const dir{ JANK_RESOURCE_DIR };
     if(dir.is_absolute())
     {
-      return dir.c_str();
+      return dir.string();
     }
     else
     {
       std::filesystem::path const jank_path{ util::process_dir().c_str() };
 
-      return (jank_path / dir).c_str();
+      return (jank_path / dir).string();
     }
   }
 }

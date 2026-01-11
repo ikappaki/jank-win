@@ -278,6 +278,8 @@ namespace jank::environment
 
   static jtl::immutable_string check_cpp_jit()
   {
+    // llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
+
     bool error{};
     auto def_err{ runtime::__rt_ctx->jit_prc.interpreter->ParseAndExecute(
       "std::string jank_cpp_health_check(){ return \"healthy\"; }") };
@@ -364,8 +366,9 @@ namespace jank::environment
     JANK_TRY
     {
       auto const tmp{ std::filesystem::temp_directory_path() };
-      std::string path_tmp{ tmp / "jank-aot-XXXXXX" };
-      mkstemp(path_tmp.data());
+      std::string path_tmp = (tmp / "jank-aot-XXXXXX").string();
+      int fd = mkstemp(path_tmp.data());
+      close(fd);
       std::filesystem::remove(path_tmp);
       std::filesystem::create_directories(path_tmp);
 
@@ -377,7 +380,7 @@ namespace jank::environment
 
       auto const saved_opts{ util::cli::opts };
       util::cli::opts.target_module = "health";
-      util::cli::opts.output_filename = exe_output;
+      util::cli::opts.output_filename = exe_output.string();
       util::cli::opts.module_path = path_tmp;
       util::scope_exit const finally{ /* NOLINTNEXTLINE(bugprone-exception-escape) */
                                       [=] { util::cli::opts = saved_opts; }
@@ -392,13 +395,14 @@ namespace jank::environment
 
       auto const stdout_file{ std::filesystem::path{ path_tmp } / "stdout" };
       auto const proc_code{ llvm::sys::ExecuteAndWait(
-        exe_output.c_str(),
-        { exe_output.c_str() },
+        exe_output.string().c_str(),
+        { exe_output.string().c_str() },
         std::nullopt,
-        { std::nullopt, stdout_file.c_str(), std::nullopt },
+        { std::nullopt, stdout_file.string().c_str(), std::nullopt },
         5) };
       if(proc_code != 0)
       {
+        util::println(":error1");
         error = true;
       }
 
@@ -407,10 +411,12 @@ namespace jank::environment
       std::getline(ifs, line);
       if(line != "healthy")
       {
+        util::println(":health-not");
         error = true;
       }
     }
     JANK_CATCH([&](auto const &e) {
+      util::println(":error");
       jank::util::print_exception(e);
       error = true;
     })

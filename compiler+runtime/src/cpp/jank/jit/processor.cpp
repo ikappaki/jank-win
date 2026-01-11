@@ -37,6 +37,10 @@ namespace jank::jit
   {
     return util::format("lib{}.so", lib);
   }
+#elif defined(_WIN32)
+  {
+    return util::format("lib{}.dll", lib);
+  }
 #endif
 
   [[maybe_unused]]
@@ -111,7 +115,7 @@ namespace jank::jit
     }
     auto const clang_dir{ std::filesystem::path{ clang_path_str.unwrap().c_str() }.parent_path() };
     args.emplace_back("-I");
-    args.emplace_back(strdup((clang_dir / "../include").c_str()));
+    args.emplace_back(strdup((clang_dir / "../include").string().c_str()));
 
     auto const clang_resource_dir{ util::find_clang_resource_dir() };
     if(clang_resource_dir.is_none())
@@ -143,7 +147,11 @@ namespace jank::jit
     auto const &pch_path_str{ pch_path.unwrap() };
     args.emplace_back("-include-pch");
     args.emplace_back(strdup(pch_path_str.c_str()));
+    // args.emplace_back("-include");
+    // args.emplace_back(strdup("d:/src/jank/compiler+runtime/include/cpp/jank/prelude.hpp"));
+    // args.emplace_back("-O3");
 
+    // args.emplace_back("d:/src/jank/compiler+runtime/build/CMakeFiles/jank_lib.dir/src/libchkstk.S.obj");
     /********* Every flag after this line is user-provided. *********/
 
     for(auto const &include_path : util::cli::opts.include_dirs)
@@ -161,7 +169,7 @@ namespace jank::jit
       args.emplace_back(strdup(util::format("-D{}", define_macro).c_str()));
     }
 
-    //util::println("jit flags {}", args);
+    util::println("jit flags {}", args);
 
 #ifdef JANK_SANITIZE
     /* ASan leads to larger code size, which can run us up against the 32 bit limit of the

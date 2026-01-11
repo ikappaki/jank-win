@@ -3,6 +3,10 @@
 /* This file is turned into a pre-compiled header which is included at run-time
  * to provide fast access to jank's C++ API. */
 
+#include <fstream>
+std::ifstream ifs("xyz");
+std::ofstream x;
+
 #include <jank/runtime/convert/builtin.hpp>
 #include <jank/runtime/visit.hpp>
 #include <jank/runtime/context.hpp>
