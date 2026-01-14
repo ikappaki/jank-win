@@ -1,0 +1,88 @@
+name: build MS-Windows
+
+on:
+  push:
+
+jobs:
+  build:
+    # if: ${{ github.event_name != 'push' || github.ref != 'refs/heads/master'}}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          # { msystem: UCRT64, runner: windows-2022},
+          { msystem: CLANG64, runner: windows-2022},
+          # { msystem: MINGW64, runner: windows-2022},
+          # { msystem: MINGW32, runner: windows-2022},
+          # { msystem: CLANGARM64, runner: windows-11-arm}
+        ]
+    name: ${{ matrix.msystem }}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Gather Facts
+        id: facts
+        run : |
+          Get-PSDrive -PSProvider FileSystem | Format-Table -AutoSize -Wrap
+          Get-CIMInstance -Class Win32_Processor | Select-Object -Property Name
+          Get-CIMInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum | Format-Table @{n="TotalPhysicalMemory";e={$_.Sum}}
+          $BUILD_DRIVE = Split-Path $env:GITHUB_WORKSPACE -Qualifier
+          echo "drive=$BUILD_DRIVE" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/checkout@v4
+        with:
+          path: temp
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: base-devel curl zip
+          update: true
+          location: '${{ steps.facts.outputs.drive }}\M'
+
+      - name: Add staging repo
+        shell: msys2 {0}
+        run: |
+          cp /etc/pacman.conf /etc/pacman.conf.bak
+          grep -qFx '[staging]' /etc/pacman.conf || sed -i '/^# \[staging\]/,/^$/ s|^# ||g' /etc/pacman.conf
+
+      - name: Update using staging
+        run: |
+          msys2 -c 'pacman --noconfirm -Suuy'
+          msys2 -c 'pacman --noconfirm -Suu'
+
+      - name: Move Checkout
+        run: |
+          $path = "${{ steps.facts.outputs.drive }}\_"
+          If (Test-Path "$path") { rm -r -fo "$path" }
+          Move-Item -Path ".\temp" -Destination "$path"
+
+      - name: install jank clang64 compiler
+        shell: msys2 {0}
+        id: build
+        run: |
+          cd compiler+runtime
+          bin/build-clang-msys2
+
+      # - name: CI-Build
+      #   shell: msys2 {0}
+      #   id: build
+      #   run: |
+      #     cd "$(cygpath '${{ steps.facts.outputs.drive }}/_')"
+      #     cd 
+      #     MINGW_ARCH=${{ matrix.msystem }} makepkg-mingw -sLf --skipchecksums --skippgpcheck --nocheck
+      #     ls -al *.pkg.tar.*
+
+      # - name: Zip packages
+      #   shell: msys2 {0}
+      #   run: |
+      #     cd "$(cygpath '${{ steps.facts.outputs.drive }}/_/mingw-w64-llvm')"
+      #     zip "${{ github.ref_name }}-${{ matrix.msystem }}.zip" *.pkg.tar.*
+
+      - name: Attach zip to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.facts.outputs.drive }}/_/mingw-w64-llvm/${{ github.ref_name }}-${{ matrix.msystem }}.zip
+
