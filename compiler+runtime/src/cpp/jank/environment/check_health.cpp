@@ -278,8 +278,6 @@ namespace jank::environment
 
   static jtl::immutable_string check_cpp_jit()
   {
-    // llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
-
     bool error{};
     auto def_err{ runtime::__rt_ctx->jit_prc.interpreter->ParseAndExecute(
       "std::string jank_cpp_health_check(){ return \"healthy\"; }") };
@@ -411,7 +409,7 @@ namespace jank::environment
       std::getline(ifs, line);
       if(line != "healthy")
       {
-        util::println(":health-not");
+        util::println(":health-not {}", line);
         error = true;
       }
     }

@@ -105,10 +105,13 @@ set(
   -DIMMER_HAS_LIBGC=1 -DIMMER_TAGGED_NODE=0 -DHAVE_CXX14=1
   -DCPPINTEROP_USE_REPL
   -DFOLLY_HAVE_JEMALLOC=0 -DFOLLY_HAVE_TCMALLOC=0 -DFOLLY_ASSUME_NO_JEMALLOC=1 -DFOLLY_ASSUME_NO_TCMALLOC=1
-  -DGC_NOT_DLL
   #-DLIBASSERT_STATIC_DEFINE=1
   #-stdlib=libc++
 )
+
+if (WIN32)
+  list(APPEND jank_common_compiler_flags -DGC_NOT_DLL)
+endif()
 
 set(
   jank_linker_flags
@@ -722,7 +725,7 @@ target_link_directories(jank_exe_phase_1 PRIVATE "$<TARGET_PROPERTY:jank_lib,LIN
 target_link_options(jank_exe_phase_1 PRIVATE ${jank_linker_flags} -L ${CMAKE_BINARY_DIR})
 
 if(WIN32)
-  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/third-party/nullprogram/libchkstk.a"
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/third-party/libchkstk/libchkstk.a"
        DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 endif()
 

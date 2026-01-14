@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+#
+# Download and Install a fixed MSYS2 CLANG64 toolchain for Jank with
+# additional patches applied.
+#
 # set -x
 
 VERSION="21.1.4-1.jank"
