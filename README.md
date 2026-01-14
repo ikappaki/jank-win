@@ -1,3 +1,5 @@
+[![CI](https://github.com/ikappaki/jank-win/actions/workflows/build-win.yml/badge.svg)](https://github.com/ikappaki/jank-win/actions/workflows/build-win.yml)
+
 # jank on MS-Windows
 
 This repository contains **jank** ported to Windows, based on the snapshot of the code as of October 6, 2025, just before the transition from Clang 21 to Clang 22. 
@@ -78,6 +80,8 @@ Install the built packages into your environment:
 pacman -U ./*.pkg.tar.zst
 
 ```
+
+----
 
 Everything below this section is the original `README.md` content.
 
