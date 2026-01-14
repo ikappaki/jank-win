@@ -1,14 +1,14 @@
 # jank on MS-Windows
 
-This repository contains **jank* ported to Windows, based on the snapshot of the code as of October 6, 2025, just before the transition from Clang 21 to Clang 22. 
+This repository contains **jank** ported to Windows, based on the snapshot of the code as of October 6, 2025, just before the transition from Clang 21 to Clang 22. 
 
 The only current limitation is that exceptions thrown by the C++ backend are not yet supported. An open ticket for this issue exists in the `llvm-project`.
 
 ## Building jank
 
-First, install [MSYS2](https://www.msys2.org/). MSYS2 provides a Unix like environment and toolchains for building native Windows software. Each MSYS2 installation is fully isolated when installed in a separate directory.
+First, [install MSYS2](https://www.msys2.org/). MSYS2 provides a Unix like environment and toolchains for building native Windows software. Each MSYS2 installation is fully isolated when installed in a separate directory.
 
-Open the **CLANG64** shell and clone the jank repository:
+Open the **CLANG64** shell and clone the jank win repository:
 ```sh
 git clone --recurse-submodules https://github.com/ikappaki/jank-win.git
 
@@ -73,7 +73,7 @@ makepkg-mingw -sLf --skipchecksums --skippgpcheck --nocheck
 
 ```
 
-Install the built packages into your environment
+Install the built packages into your environment:
 ```sh
 pacman -U ./*.pkg.tar.zst
 
