@@ -1,3 +1,87 @@
+# jank on MS-Windows
+
+This repository contains **jank* ported to Windows, based on the snapshot of the code as of October 6, 2025, just before the transition from Clang 21 to Clang 22. 
+
+The only current limitation is that exceptions thrown by the C++ backend are not yet supported. An open ticket for this issue exists in the `llvm-project`.
+
+## Building jank
+
+First, install [MSYS2](https://www.msys2.org/). MSYS2 provides a Unix like environment and toolchains for building native Windows software. Each MSYS2 installation is fully isolated when installed in a separate directory.
+
+Open the **CLANG64** shell and clone the jank repository:
+```sh
+git clone --recurse-submodules https://github.com/ikappaki/jank-win.git
+
+# If you didn't recurse submodules when cloning, you'll need to run this.
+git submodule update --init --recursive --jobs 8
+```
+
+Install dependencies:
+```sh
+pacman -S mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-boost mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc
+```
+
+Download and install a precompiled *clang64* package with the required jank patches, If you prefer, instructions for building it locally are provided further below:
+```sh
+cd compiler+runtime
+./bin/msys2-clang64-install.sh
+
+```
+
+You can now follow the official [jank build instructions](compiler+runtime/doc/build.md]).
+
+## Quick summary
+
+**Release build**
+```sh
+cd compiler+runtime
+./bin/configure -GNinja -DCMAKE_BUILD_TYPE=Release
+./bin/compile
+```
+
+**Debug build**
+```sh
+cd compiler+runtime
+./bin/configure -GNinja -DCMAKE_BUILD_TYPE=Debug -Djank_test=on
+./bin/compile
+```
+
+**Running the REPL**
+```sh
+cd compiler+runtime
+./build/jank repl
+```
+
+## Compiling Clang/LLVM
+
+Open an MSYS2 **CLANG64** shell and follow these steps:
+
+Clone the patched MSYS2 `MINGW-packages` repository and build the LLVM packages:
+```sh
+# Clone the repository
+git clone https://github.com/ikappaki/MINGW-packages.git
+
+# Switch to the branch with the jank Clang 21 patches
+git switch jank-clang-21
+
+# Install essential build dependencies
+pacman -S base-devel git
+
+# Build the LLVM packages (this may take an hour or two)
+cd mingw-w64-llvm
+makepkg-mingw -sLf --skipchecksums --skippgpcheck --nocheck
+
+```
+
+Install the built packages into your environment
+```sh
+pacman -U ./*.pkg.tar.zst
+
+```
+
+Everything below this section is the original `README.md` content.
+
+----
 <a href="https://jank-lang.org">
   <img src="https://media.githubusercontent.com/media/jank-lang/jank/main/.github/img/banner.png" alt="jank banner" />
 </a>
