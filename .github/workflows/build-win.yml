@@ -63,6 +63,7 @@ jobs:
         shell: msys2 {0}
         id: build
         run: |
+          cd "$(cygpath '${{ steps.facts.outputs.drive }}/_')"
           cd compiler+runtime
           bin/build-clang-msys2
 
