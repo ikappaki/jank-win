@@ -34,6 +34,7 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
+          submodules: recursive
 
       - uses: msys2/setup-msys2@v2
         with:
