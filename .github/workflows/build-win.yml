@@ -65,7 +65,7 @@ jobs:
         run: |
           cd "$(cygpath '${{ steps.facts.outputs.drive }}/_')"
           cd compiler+runtime
-          bin/build-clang-msys2
+          bin/msys2-clang64-install.sh
 
       # - name: CI-Build
       #   shell: msys2 {0}
