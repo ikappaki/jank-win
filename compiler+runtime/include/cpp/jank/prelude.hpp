@@ -3,6 +3,8 @@
 /* This file is turned into a pre-compiled header which is included at run-time
  * to provide fast access to jank's C++ API. */
 
+// MINGW64: Workaround to make the std::ifstream(const char*) constructor
+// available to jank
 #include <fstream>
 std::ifstream ifs("xyz");
 std::ofstream x;

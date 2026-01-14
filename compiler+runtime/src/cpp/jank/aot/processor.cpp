@@ -174,9 +174,10 @@ int main(int argc, const char** argv)
     auto const clang_dir{ std::filesystem::path{ clang_path_str.unwrap().c_str() }.parent_path() };
     compiler_args.emplace_back(strdup("-I"));
     compiler_args.emplace_back(strdup((clang_dir / "../include").string().c_str()));
+#ifndef __MINGW64__
     compiler_args.emplace_back(
       strdup(util::format("-Wl,-rpath,{}", (clang_dir / "../lib").string()).c_str()));
-
+#endif
     std::filesystem::path const jank_path{ util::process_dir().c_str() };
     compiler_args.emplace_back(strdup("-L"));
     compiler_args.emplace_back(strdup(jank_path.string().c_str()));
@@ -266,7 +267,7 @@ int main(int argc, const char** argv)
     compiler_args.push_back(strdup("-o"));
     compiler_args.push_back(strdup(util::cli::opts.output_filename.c_str()));
 
-    util::println("compilation command: {} ", compiler_args);
+    //util::println("compilation command: {} ", compiler_args);
 
     auto const res{ util::invoke_clang(compiler_args) };
     if(res.is_err())

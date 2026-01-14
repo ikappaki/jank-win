@@ -145,13 +145,15 @@ namespace jank::jit
       pch_path = res.expect_ok();
     }
     auto const &pch_path_str{ pch_path.unwrap() };
+#ifdef __MINGW64__
+    (void)pch_path_str;
+    args.emplace_back("-include");
+    args.emplace_back(strdup("jank/prelude.hpp"));
+#else
     args.emplace_back("-include-pch");
     args.emplace_back(strdup(pch_path_str.c_str()));
-    // args.emplace_back("-include");
-    // args.emplace_back(strdup("d:/src/jank/compiler+runtime/include/cpp/jank/prelude.hpp"));
-    // args.emplace_back("-O3");
+#endif
 
-    // args.emplace_back("d:/src/jank/compiler+runtime/build/CMakeFiles/jank_lib.dir/src/libchkstk.S.obj");
     /********* Every flag after this line is user-provided. *********/
 
     for(auto const &include_path : util::cli::opts.include_dirs)
@@ -169,7 +171,7 @@ namespace jank::jit
       args.emplace_back(strdup(util::format("-D{}", define_macro).c_str()));
     }
 
-    util::println("jit flags {}", args);
+    //util::println("jit flags {}", args);
 
 #ifdef JANK_SANITIZE
     /* ASan leads to larger code size, which can run us up against the 32 bit limit of the
