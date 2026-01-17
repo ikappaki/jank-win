@@ -363,7 +363,6 @@ include(cmake/dependency/boost-multiprecision.cmake)
 
 find_package(LibZip REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
-find_package(Boost CONFIG REQUIRED COMPONENTS iostreams)
 # ---- Other dependencies ----
 
 # ---- libjank.a ----
@@ -554,7 +553,6 @@ target_include_directories(
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cpptrace/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cppinterop/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cppinterop/lib>"
-  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/boost-iostreams/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/boost-preprocessor/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/boost-multiprecision/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/stduuid/include/>"
