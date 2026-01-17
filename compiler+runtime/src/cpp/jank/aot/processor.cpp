@@ -184,7 +184,8 @@ int main(int argc, const char** argv)
 
     std::filesystem::path const jank_resource_dir{ util::resource_dir().c_str() };
     compiler_args.emplace_back(strdup("-I"));
-    compiler_args.emplace_back(strdup(util::format("{}/include", jank_resource_dir.string()).c_str()));
+    compiler_args.emplace_back(
+      strdup(util::format("{}/include", jank_resource_dir.string()).c_str()));
     compiler_args.emplace_back(strdup("-L"));
     compiler_args.emplace_back(strdup(util::format("{}/lib", jank_resource_dir.string()).c_str()));
 

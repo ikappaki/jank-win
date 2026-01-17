@@ -263,8 +263,9 @@ namespace jank::util
       include_path = install_path.c_str();
     }
 
-    std::filesystem::path const output_path{ format("{}/incremental.pch",
-                                                    user_cache_dir(binary_version)).c_str() };
+    std::filesystem::path const output_path{
+      format("{}/incremental.pch", user_cache_dir(binary_version)).c_str()
+    };
     std::filesystem::create_directories(output_path.parent_path());
 
     args.emplace_back("-Xclang");

@@ -61,14 +61,21 @@ namespace jank::runtime::module
   };
 
 #ifdef _WIN32
-#include <windows.h>
+  #include <windows.h>
+
   struct HANDLES
   {
     HANDLE hFile;
     HANDLE hMapping;
     HANDLES() = delete;
-    HANDLES(HANDLE file, HANDLE mapping) : hFile(file), hMapping(mapping) {}
+
+    HANDLES(HANDLE file, HANDLE mapping)
+      : hFile(file)
+      , hMapping(mapping)
+    {
+    }
   };
+
   using file_handle = HANDLES;
 #else
   using file_handle = int;

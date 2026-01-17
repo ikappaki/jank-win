@@ -1,7 +1,7 @@
 #ifdef __MINGW64__
-#include <windows.h>
+  #include <windows.h>
 #else
-#include <sys/mman.h>
+  #include <sys/mman.h>
 #endif
 #include <fcntl.h>
 #include <unistd.h>
@@ -476,53 +476,46 @@ namespace jank::runtime::module
     }
 
 #ifdef _WIN32
-    HANDLE hFile = CreateFileA(
-        path.c_str(),
-        GENERIC_READ,
-        FILE_SHARE_READ,
-        nullptr,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        nullptr
-    );
+    HANDLE hFile = CreateFileA(path.c_str(),
+                               GENERIC_READ,
+                               FILE_SHARE_READ,
+                               nullptr,
+                               OPEN_EXISTING,
+                               FILE_ATTRIBUTE_NORMAL,
+                               nullptr);
 
-    if (hFile == INVALID_HANDLE_VALUE)
-        return err("Unable to open file");
-
-    LARGE_INTEGER fileSize;
-    if (!GetFileSizeEx(hFile, &fileSize))
+    if(hFile == INVALID_HANDLE_VALUE)
     {
-        CloseHandle(hFile);
-        return err("Failed to get file size");
+      return err("Unable to open file");
     }
 
-    HANDLE hMapping = CreateFileMappingA(
-        hFile,
-        nullptr,
-        PAGE_READONLY,
-        0,
-        0,
-        nullptr
-    );
-
-    if (!hMapping)
+    LARGE_INTEGER fileSize;
+    if(!GetFileSizeEx(hFile, &fileSize))
     {
-        CloseHandle(hFile);
-        return err("Failed to create file mapping");
+      CloseHandle(hFile);
+      return err("Failed to get file size");
+    }
+
+    HANDLE hMapping = CreateFileMappingA(hFile, nullptr, PAGE_READONLY, 0, 0, nullptr);
+
+    if(!hMapping)
+    {
+      CloseHandle(hFile);
+      return err("Failed to create file mapping");
     }
 
     auto head = static_cast<char const *>(MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0));
-    if (!head)
+    if(!head)
     {
-        CloseHandle(hMapping);
-        CloseHandle(hFile);
-        return err("Failed to map view of file");
+      CloseHandle(hMapping);
+      CloseHandle(hFile);
+      return err("Failed to map view of file");
     }
 
-    return ok(file_view{HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart)});
+    return ok(file_view{ HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart) });
 
 #else
-  auto const file_size(std::filesystem::file_size(path.c_str()));
+    auto const file_size(std::filesystem::file_size(path.c_str()));
     /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg) */
     auto const fd(::open(path.c_str(), O_RDONLY));
     if(fd < 0)
@@ -533,11 +526,11 @@ namespace jank::runtime::module
       reinterpret_cast<char const *>(mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0)));
 
     /* MAP_FAILED is a macro which does a C-style cast. */
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wold-style-cast"
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wold-style-cast"
     /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast,performance-no-int-to-ptr) */
     if(head == MAP_FAILED)
-#pragma clang diagnostic pop
+  #pragma clang diagnostic pop
     {
       return err("Mapping failed for unknown reason");
     }
