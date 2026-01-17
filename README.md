@@ -1,4 +1,4 @@
-[![CI](https://github.com/ikappaki/jank-win/actions/workflows/build-win.yml/badge.svg)](https://github.com/ikappaki/jank-win/actions/workflows/build-win.yml)
+[![CIWIN](https://github.com/ikappaki/jank-win/actions/workflows/build-win.yml/badge.svg)](https://github.com/ikappaki/jank-win/actions/workflows/build-win.yml) [![CI](https://github.com/ikappaki/jank-win/actions/workflows/build.yml/badge.svg)](https://github.com/ikappaki/jank-win/actions/workflows/build.yml)
 
 # jank on MS-Windows
 

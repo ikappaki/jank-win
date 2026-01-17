@@ -14,9 +14,9 @@ struct HANDLES
   HANDLES() = delete;
   HANDLES(HANDLE file, HANDLE mapping) : hFile(file), hMapping(mapping) {}
 };
-using file_handle = HANDLES;
+using mapped_file_handle = HANDLES;
 #else
-using file_handle = int;
+using mapped_file_handle = int;
 #endif
 
 namespace jank::runtime
@@ -82,7 +82,7 @@ namespace jank::runtime::module
     file_view() = default;
     file_view(file_view const &) = delete;
     file_view(file_view &&) noexcept;
-    file_view(file_handle f, char const * const h, usize const s);
+    file_view(mapped_file_handle f, char const * const h, usize const s);
     file_view(jtl::immutable_string const &buff);
     ~file_view();
 
@@ -94,7 +94,7 @@ namespace jank::runtime::module
   private:
     /* In the case where we map a file, we track this information so we can read it and
      * later unmap it. */
-    std::optional<file_handle> fd{};
+    std::optional<mapped_file_handle> fd{};
     char const *head{};
     usize len{};
 

@@ -391,7 +391,7 @@ namespace jank::runtime::module
     mf.head = nullptr;
   }
 
-  file_view::file_view(file_handle const f, char const * const h, usize const s)
+  file_view::file_view(mapped_file_handle const f, char const * const h, usize const s)
     : fd{ f }
     , head{ h }
     , len{ s }
