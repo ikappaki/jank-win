@@ -1012,7 +1012,8 @@ extern "C"
       /* To handle UTF-8, we set the locale to the current environment locale.
        * Usage of the local locale allows better localization.
        * Notably, this might make text encoding become more platform dependent. */
-#if !defined(__MINGW64__)
+#ifdef __MINGW64__
+#else
       std::locale::global(std::locale(""));
 #endif
 

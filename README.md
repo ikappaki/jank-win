@@ -54,14 +54,14 @@ cd compiler+runtime
 ./build/jank repl
 ```
 
-** Running the health check**
+**Running the health check**
 ```sh
 cd compiler+runtime
 ./build/jank check-health
 
 ```
 
-** Running the tests**
+**Running the tests**
 ```sh
 cd compiler+runtime
 ./build/jank-test

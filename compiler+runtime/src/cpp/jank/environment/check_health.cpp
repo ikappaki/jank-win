@@ -400,7 +400,6 @@ namespace jank::environment
         5) };
       if(proc_code != 0)
       {
-        util::println(":error1");
         error = true;
       }
 
@@ -409,12 +408,10 @@ namespace jank::environment
       std::getline(ifs, line);
       if(line != "healthy")
       {
-        util::println(":health-not {}", line);
         error = true;
       }
     }
     JANK_CATCH([&](auto const &e) {
-      util::println(":error");
       jank::util::print_exception(e);
       error = true;
     })
