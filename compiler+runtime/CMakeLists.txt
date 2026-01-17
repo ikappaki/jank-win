@@ -568,7 +568,6 @@ target_link_libraries(
   libzippp::libzippp
   cpptrace::cpptrace
   ftxui::screen ftxui::dom
-  Boost::iostreams
   Boost::multiprecision
   nanobench_lib
   bdwgc::gc bdwgc::gctba
@@ -602,10 +601,7 @@ foreach(dir ${jank_lib_includes_prop})
   endif()
 endforeach()
 
-set(jank_lib_linker_flags_list "-lboost_iostreams-mt")
-
-# Get the full library path from the imported target
-get_target_property(boost_io_lib Boost::iostreams IMPORTED_LOCATION_RELEASE)
+set(jank_lib_linker_flags_list "")
 
 if(WIN32)
   list(APPEND jank_lib_linker_flags_list
@@ -738,7 +734,6 @@ target_link_libraries(
   libzip::zip z
   LLVM clang-cpp
   OpenSSL::Crypto
-  Boost::iostreams
 )
 
 if(WIN32)
@@ -746,6 +741,7 @@ if(WIN32)
     jank_exe_phase_1 PUBLIC
     ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
 
+    zstd
     ws2_32
     dbghelp
   )
@@ -851,7 +847,6 @@ if(jank_test)
     LLVM clang-cpp
     OpenSSL::Crypto
     doctest::doctest
-    Boost::iostreams
   )
 
   if(WIN32)
@@ -859,6 +854,7 @@ if(jank_test)
       jank_test_exe PUBLIC
       ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
 
+      zstd
       ws2_32
       dbghelp
     )
