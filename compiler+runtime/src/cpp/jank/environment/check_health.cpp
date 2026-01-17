@@ -365,7 +365,7 @@ namespace jank::environment
     {
       auto const tmp{ std::filesystem::temp_directory_path() };
       std::string path_tmp = (tmp / "jank-aot-XXXXXX").string();
-      const int fd = mkstemp(path_tmp.data());
+      int const fd = mkstemp(path_tmp.data());
       close(fd);
       std::filesystem::remove(path_tmp);
       std::filesystem::create_directories(path_tmp);

@@ -374,7 +374,8 @@ namespace jank::runtime
     profile::timer const timer{ util::format("write_module {}", module_name) };
     std::filesystem::path const module_path{
       util::cli::opts.output_object_filename.empty()
-        ? std::string(util::format("{}/{}.o", binary_cache_dir, module::module_to_path(module_name)))
+        ? std::string(
+            util::format("{}/{}.o", binary_cache_dir, module::module_to_path(module_name)))
         : std::string(jtl::immutable_string{ util::cli::opts.output_object_filename })
     };
     std::filesystem::create_directories(module_path.parent_path());

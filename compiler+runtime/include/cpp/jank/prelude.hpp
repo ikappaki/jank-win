@@ -4,9 +4,9 @@
  * to provide fast access to jank's C++ API. */
 
 #ifdef __MINGW64__
-// Workaround to make the std::ifstream(const char*) constructor
-// available to jank
-#include <fstream>
+  // Workaround to make the std::ifstream(const char*) constructor
+  // available to jank
+  #include <fstream>
 std::ifstream __jank_mingw64_ifs("");
 std::ofstream __jank_mingw64_ofs;
 #endif
