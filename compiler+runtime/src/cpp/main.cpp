@@ -163,7 +163,7 @@ namespace jank
      * and we reuse the same file over and over. */
     auto const tmp{ std::filesystem::temp_directory_path() };
     std::string path_tmp{ (tmp / "jank-repl-XXXXXX").string() };
-    int fd = mkstemp(path_tmp.data());
+    const int fd = mkstemp(path_tmp.data());
     close(fd);
 
     /* TODO: Completion. */
