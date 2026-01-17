@@ -1,10 +1,13 @@
+#ifdef __MINGW64__
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#endif
 #include <fcntl.h>
 #include <unistd.h>
 
 #include <filesystem>
 #include <regex>
-
-#include <boost/iostreams/device/mapped_file.hpp>
 
 #include <libzippp.h>
 
@@ -379,17 +382,17 @@ namespace jank::runtime::module
   }
 
   file_view::file_view(file_view &&mf) noexcept
-    : mfs{ std::move(mf.mfs) }
+    : fd{ mf.fd }
     , head{ mf.head }
     , len{ mf.len }
     , buff{ std::move(mf.buff) }
   {
-    mf.mfs = boost::iostreams::mapped_file_source();
+    mf.fd.reset();
     mf.head = nullptr;
   }
 
-  file_view::file_view(boost::iostreams::mapped_file_source mfs, char const * const h, size_t const s)
-    : mfs{ std::move(mfs) }
+  file_view::file_view(file_handle const f, char const * const h, usize const s)
+    : fd{ f }
     , head{ h }
     , len{ s }
   {
@@ -401,10 +404,26 @@ namespace jank::runtime::module
   }
 
   file_view::~file_view()
+
   {
-    if (mfs.is_open())
+    if(head != nullptr)
+    /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast): I want const everywhere else. */
     {
-      mfs.close();
+#ifdef _WIN32
+      UnmapViewOfFile(head);
+#else
+      munmap(reinterpret_cast<void *>(const_cast<char *>(head)), len);
+#endif
+    }
+    if(fd.has_value())
+    {
+#ifdef _WIN32
+      CloseHandle(fd.value().hMapping);
+      CloseHandle(fd.value().hFile);
+#else
+      ::close(fd.value());
+#endif
+      fd.reset();
     }
   }
 
@@ -455,13 +474,76 @@ namespace jank::runtime::module
     {
       return err("File doesn't exist");
     }
-    boost::iostreams::mapped_file_source file;
-    file.open(path.data());
-    if(!file.is_open())
+
+#ifdef _WIN32
+    HANDLE hFile = CreateFileA(
+        path.c_str(),
+        GENERIC_READ,
+        FILE_SHARE_READ,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr
+    );
+
+    if (hFile == INVALID_HANDLE_VALUE)
+        return err("Unable to open file");
+
+    LARGE_INTEGER fileSize;
+    if (!GetFileSizeEx(hFile, &fileSize))
+    {
+        CloseHandle(hFile);
+        return err("Failed to get file size");
+    }
+
+    HANDLE hMapping = CreateFileMappingA(
+        hFile,
+        nullptr,
+        PAGE_READONLY,
+        0,
+        0,
+        nullptr
+    );
+
+    if (!hMapping)
+    {
+        CloseHandle(hFile);
+        return err("Failed to create file mapping");
+    }
+
+    auto head = static_cast<char const *>(MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0));
+    if (!head)
+    {
+        CloseHandle(hMapping);
+        CloseHandle(hFile);
+        return err("Failed to map view of file");
+    }
+
+    return ok(file_view{HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart)});
+
+#else
+  auto const file_size(std::filesystem::file_size(path.c_str()));
+    /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg) */
+    auto const fd(::open(path.c_str(), O_RDONLY));
+    if(fd < 0)
     {
       return err("Unable to open file");
     }
-    return ok(file_view{ std::move(file), file.data(), file.size() });
+    auto const head(
+      reinterpret_cast<char const *>(mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0)));
+
+    /* MAP_FAILED is a macro which does a C-style cast. */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wold-style-cast"
+    /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast,performance-no-int-to-ptr) */
+    if(head == MAP_FAILED)
+#pragma clang diagnostic pop
+    {
+      return err("Mapping failed for unknown reason");
+    }
+
+    return ok(file_view{ fd, head, file_size });
+#endif
   }
 
   jtl::string_result<file_view> loader::read_file(jtl::immutable_string const &path)
