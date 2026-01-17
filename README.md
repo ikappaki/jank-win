@@ -2,9 +2,9 @@
 
 # jank on MS-Windows
 
-This repository contains **jank** ported to Windows, based on the snapshot of the code as of October 6, 2025, just before the transition from Clang 21 to Clang 22. 
+This repository contains **jank** ported to Windows, based on a snapshot taken just before the Clang 21 to Clang 22 transition (Sep 2025), with plans to gradually upgrade to the lasest version.
 
-The only current limitation is that exceptions thrown by the C++ backend are not yet supported. An open ticket for this issue exists in the `llvm-project`.
+The only current functional limitation is that exceptions thrown by the C++ backend are not yet supported. An [open ticket](https://github.com/llvm/llvm-project/issues/126365) has been filed in the`llvm-project`.
 
 ## Building jank
 
@@ -54,7 +54,22 @@ cd compiler+runtime
 ./build/jank repl
 ```
 
+** Running the health check**
+```sh
+cd compiler+runtime
+./build/jank check-health
+
+```
+
+** Running the tests**
+```sh
+cd compiler+runtime
+./build/jank-test
+```
+
 ## Compiling Clang/LLVM
+
+Instead of using [precompiled binaries](https://github.com/ikappaki/MINGW-packages/releases), you can build Clang/LLVM locally with the required jank patches.
 
 Open an MSYS2 **CLANG64** shell and follow these steps:
 

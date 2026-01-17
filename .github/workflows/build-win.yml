@@ -73,7 +73,7 @@ jobs:
         run: |
           cd "$(cygpath '${{ steps.facts.outputs.drive }}/_')"
           cd compiler+runtime
-          ./bin/configure -GNinja -DCMAKE_BUILD_TYPE=Debug -Djank_test=on
+          ./bin/configure -GNinja -DCMAKE_BUILD_TYPE=Release -Djank_test=on
           ./bin/compile
 
       - name: test
