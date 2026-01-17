@@ -1,23 +1,10 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 
 #include <jank/runtime/object.hpp>
 #include <jtl/result.hpp>
-
-#ifdef _WIN32
-#include <windows.h>
-struct HANDLES
-{
-  HANDLE hFile;
-  HANDLE hMapping;
-  HANDLES() = delete;
-  HANDLES(HANDLE file, HANDLE mapping) : hFile(file), hMapping(mapping) {}
-};
-using mapped_file_handle = HANDLES;
-#else
-using mapped_file_handle = int;
-#endif
 
 namespace jank::runtime
 {
@@ -73,6 +60,20 @@ namespace jank::runtime::module
     jtl::immutable_string path;
   };
 
+#ifdef _WIN32
+#include <windows.h>
+  struct HANDLES
+  {
+    HANDLE hFile;
+    HANDLE hMapping;
+    HANDLES() = delete;
+    HANDLES(HANDLE file, HANDLE mapping) : hFile(file), hMapping(mapping) {}
+  };
+  using file_handle = HANDLES;
+#else
+  using file_handle = int;
+#endif
+
   /* When reading a file, we may find it on the filesystem or within a JAR. In the
    * first case, we map it with `mmap`, but we can't do that for JAR files since
    * we need to decompress them into memory. This `file_view` gives us one view
@@ -82,7 +83,7 @@ namespace jank::runtime::module
     file_view() = default;
     file_view(file_view const &) = delete;
     file_view(file_view &&) noexcept;
-    file_view(mapped_file_handle f, char const * const h, usize const s);
+    file_view(file_handle f, char const * const h, usize const s);
     file_view(jtl::immutable_string const &buff);
     ~file_view();
 
@@ -94,7 +95,7 @@ namespace jank::runtime::module
   private:
     /* In the case where we map a file, we track this information so we can read it and
      * later unmap it. */
-    std::optional<mapped_file_handle> fd{};
+    std::optional<file_handle> fd{};
     char const *head{};
     usize len{};
 
