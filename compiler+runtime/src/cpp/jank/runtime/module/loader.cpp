@@ -1,3 +1,8 @@
+#ifdef __MINGW64__
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#endif
 #include <fcntl.h>
 #include <unistd.h>
 
