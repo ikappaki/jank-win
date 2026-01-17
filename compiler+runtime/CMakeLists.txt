@@ -363,7 +363,6 @@ include(cmake/dependency/boost-multiprecision.cmake)
 
 find_package(LibZip REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
-find_package(Boost CONFIG REQUIRED COMPONENTS iostreams)
 # ---- Other dependencies ----
 
 # ---- libjank.a ----
@@ -554,7 +553,6 @@ target_include_directories(
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cpptrace/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cppinterop/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cppinterop/lib>"
-  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/boost-iostreams/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/boost-preprocessor/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/boost-multiprecision/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/stduuid/include/>"
@@ -568,7 +566,6 @@ target_link_libraries(
   libzippp::libzippp
   cpptrace::cpptrace
   ftxui::screen ftxui::dom
-  Boost::iostreams
   Boost::multiprecision
   nanobench_lib
   bdwgc::gc bdwgc::gctba
@@ -602,10 +599,7 @@ foreach(dir ${jank_lib_includes_prop})
   endif()
 endforeach()
 
-set(jank_lib_linker_flags_list "-lboost_iostreams-mt")
-
-# Get the full library path from the imported target
-get_target_property(boost_io_lib Boost::iostreams IMPORTED_LOCATION_RELEASE)
+set(jank_lib_linker_flags_list "")
 
 if(WIN32)
   list(APPEND jank_lib_linker_flags_list
@@ -738,7 +732,6 @@ target_link_libraries(
   libzip::zip z
   LLVM clang-cpp
   OpenSSL::Crypto
-  Boost::iostreams
 )
 
 if(WIN32)
@@ -746,6 +739,7 @@ if(WIN32)
     jank_exe_phase_1 PUBLIC
     ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
 
+    zstd
     ws2_32
     dbghelp
   )
@@ -851,7 +845,6 @@ if(jank_test)
     LLVM clang-cpp
     OpenSSL::Crypto
     doctest::doctest
-    Boost::iostreams
   )
 
   if(WIN32)
@@ -859,6 +852,7 @@ if(jank_test)
       jank_test_exe PUBLIC
       ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
 
+      zstd
       ws2_32
       dbghelp
     )

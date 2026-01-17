@@ -365,7 +365,7 @@ namespace jank::environment
     {
       auto const tmp{ std::filesystem::temp_directory_path() };
       std::string path_tmp = (tmp / "jank-aot-XXXXXX").string();
-      int fd = mkstemp(path_tmp.data());
+      const int fd = mkstemp(path_tmp.data());
       close(fd);
       std::filesystem::remove(path_tmp);
       std::filesystem::create_directories(path_tmp);
@@ -393,8 +393,8 @@ namespace jank::environment
 
       auto const stdout_file{ std::filesystem::path{ path_tmp } / "stdout" };
       auto const proc_code{ llvm::sys::ExecuteAndWait(
-        exe_output.string().c_str(),
-        { exe_output.string().c_str() },
+        exe_output.string(),
+        { exe_output.string() },
         std::nullopt,
         { std::nullopt, stdout_file.string().c_str(), std::nullopt },
         5) };
