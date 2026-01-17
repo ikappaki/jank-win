@@ -16,7 +16,7 @@
 #include <jank/util/fmt.hpp>
 
 #ifdef _WIN32
-#  include <windows.h>
+  #include <windows.h>
 #endif
 
 namespace jank::util
@@ -152,10 +152,11 @@ namespace jank::util
     char path[MAX_PATH];
     DWORD size = GetModuleFileNameA(NULL, path, MAX_PATH);
 
-    if (size == 0) {
+    if(size == 0)
+    {
       return std::string();
     }
-    const std::string spath(path, size);
+    std::string const spath(path, size);
     return spath;
 #else
     static_assert(false, "Unsupported platform");
