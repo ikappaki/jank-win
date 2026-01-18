@@ -5,7 +5,7 @@
 #
 # set -x
 
-VERSION="21.1.4-1.jank"
+VERSION="21.1.8-2.jank"
 FLAVOR="CLANG64"
 BASE_URL="https://github.com/ikappaki/MINGW-packages/releases/download/mingw-w64-llvm-${VERSION}"
 ZIP="mingw-w64-llvm-${VERSION}-${FLAVOR}.zip"
