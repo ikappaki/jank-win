@@ -1,4 +1,7 @@
 #include <cstdarg>
+#ifdef _WIN32
+  #include <windows.h>
+#endif
 
 #include <llvm-c/Target.h>
 #include <llvm/Support/CommandLine.h>
@@ -1009,11 +1012,13 @@ extern "C"
   {
     JANK_TRY
     {
+#ifdef _WIN32
+      SetConsoleOutputCP(CP_UTF8);
+      SetConsoleCP(CP_UTF8);
+#else
       /* To handle UTF-8, we set the locale to the current environment locale.
        * Usage of the local locale allows better localization.
        * Notably, this might make text encoding become more platform dependent. */
-#ifdef __MINGW64__
-#else
       std::locale::global(std::locale(""));
 #endif
 
