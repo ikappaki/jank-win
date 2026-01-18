@@ -10,7 +10,12 @@ The only current functional limitation is that exceptions thrown by the C++ back
 
 First, [install MSYS2](https://www.msys2.org/). MSYS2 provides a Unix like environment and toolchains for building native Windows software. Each MSYS2 installation is fully isolated when installed in a separate directory.
 
-Open the **CLANG64** shell and clone the jank win repository:
+Open the **MSYS2 CLANG64** shell and install `git`:
+```sh
+pacman -S git
+```
+
+Clone the jank-win repository:
 ```sh
 git clone --recurse-submodules https://github.com/ikappaki/jank-win.git
 
