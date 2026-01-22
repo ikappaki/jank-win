@@ -37,6 +37,7 @@ jobs:
             ${{ github.workspace }}/compiler+runtime/build/llvm-install
           key: clang-${{ runner.os }}-${{ hashFiles('compiler+runtime/bin/build-clang', 'compiler+runtime/third-party/MINGW-packages/mingw-w64-llvm/**') }}
       - name: Build Clang/LLVM
+        shell: msys2 {0}
         run: |
           if [[ ! -d "${{ github.workspace }}/compiler+runtime/build/llvm-install" ]];
           then
