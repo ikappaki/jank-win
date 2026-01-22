@@ -42,7 +42,7 @@ jobs:
           WS=$(cygpath -u "${{ github.workspace }}")
           if [[ ! -d "$WS/compiler+runtime/build/llvm-install" ]];
           then
-            pushd ${{ github.workspace }}/compiler+runtime
+            pushd $WS/compiler+runtime
               ./bin/build-clang
             popd
           fi
