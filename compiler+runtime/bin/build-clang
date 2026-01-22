@@ -15,6 +15,7 @@ set +e
   make_j="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)"
 set -e
 
+install=0
 update=0
 
 while getopts ":hiuj:" opt; do
