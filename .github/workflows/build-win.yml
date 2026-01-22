@@ -39,13 +39,14 @@ jobs:
       - name: Build Clang/LLVM
         shell: msys2 {0}
         run: |
-          if [[ ! -d "${{ github.workspace }}/compiler+runtime/build/llvm-install" ]];
+          WS=$(cygpath -u "${{ github.workspace }}")
+          if [[ ! -d "$WS/compiler+runtime/build/llvm-install" ]];
           then
             pushd ${{ github.workspace }}/compiler+runtime
               ./bin/build-clang
             popd
           fi
-          ls -al ${{ github.workspace }}/compiler+runtime/build/llvm-install
+          ls -al $WS/compiler+runtime/build/llvm-install
 
   # build:
   #   # if: ${{ github.event_name != 'push' || github.ref != 'refs/heads/master'}}
