@@ -50,81 +50,85 @@ jobs:
           fi
           ls -al $WS/compiler+runtime/build/llvm-install
 
-  # build:
-  #   # if: ${{ github.event_name != 'push' || github.ref != 'refs/heads/master'}}
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include: [
-  #         # { msystem: UCRT64, runner: windows-2022},
-  #         { msystem: CLANG64, runner: windows-2022},
-  #         # { msystem: MINGW64, runner: windows-2022},
-  #         # { msystem: MINGW32, runner: windows-2022},
-  #         # { msystem: CLANGARM64, runner: windows-11-arm}
-  #       ]
-  #   name: ${{ matrix.msystem }}
-  #   runs-on: ${{ matrix.runner }}
-  #   steps:
-  #     - name: Gather Facts
-  #       id: facts
-  #       run : |
-  #         Get-PSDrive -PSProvider FileSystem | Format-Table -AutoSize -Wrap
-  #         Get-CIMInstance -Class Win32_Processor | Select-Object -Property Name
-  #         Get-CIMInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum | Format-Table @{n="TotalPhysicalMemory";e={$_.Sum}}
-  #         $BUILD_DRIVE = Split-Path $env:GITHUB_WORKSPACE -Qualifier
-  #         echo "drive=$BUILD_DRIVE" >> $env:GITHUB_OUTPUT
+  build:
+    needs:
+      windows-build-clang
 
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         path: temp
-  #         fetch-depth: 0
-  #         filter: blob:none
-  #         persist-credentials: false
-  #         submodules: recursive
+    # if: ${{ github.event_name != 'push' || github.ref != 'refs/heads/master'}}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          # { msystem: UCRT64, runner: windows-2022},
+          { msystem: CLANG64, runner: windows-2022},
+          # { msystem: MINGW64, runner: windows-2022},
+          # { msystem: MINGW32, runner: windows-2022},
+          # { msystem: CLANGARM64, runner: windows-11-arm}
+        ]
+    name: ${{ matrix.msystem }}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Gather Facts
+        id: facts
+        run : |
+          Get-PSDrive -PSProvider FileSystem | Format-Table -AutoSize -Wrap
+          Get-CIMInstance -Class Win32_Processor | Select-Object -Property Name
+          Get-CIMInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum | Format-Table @{n="TotalPhysicalMemory";e={$_.Sum}}
+          $BUILD_DRIVE = Split-Path $env:GITHUB_WORKSPACE -Qualifier
+          echo "drive=$BUILD_DRIVE" >> $env:GITHUB_OUTPUT
 
-  #     - uses: msys2/setup-msys2@v2
-  #       with:
-  #         msystem: ${{ matrix.msystem }}
-  #         install: base-devel curl zip mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc
-  #         update: true
-  #         location: '${{ steps.facts.outputs.drive }}\M'
+      - uses: actions/checkout@v4
+        with:
+          path: temp
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+          submodules: recursive
 
-  #     - name: Add staging repo
-  #       shell: msys2 {0}
-  #       run: |
-  #         cp /etc/pacman.conf /etc/pacman.conf.bak
-  #         grep -qFx '[staging]' /etc/pacman.conf || sed -i '/^# \[staging\]/,/^$/ s|^# ||g' /etc/pacman.conf
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: base-devel curl zip mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc
+          update: true
+          location: '${{ steps.facts.outputs.drive }}\M'
 
-  #     - name: Update using staging
-  #       run: |
-  #         msys2 -c 'pacman --noconfirm -Suuy'
-  #         msys2 -c 'pacman --noconfirm -Suu'
+      - name: Add staging repo
+        shell: msys2 {0}
+        run: |
+          cp /etc/pacman.conf /etc/pacman.conf.bak
+          grep -qFx '[staging]' /etc/pacman.conf || sed -i '/^# \[staging\]/,/^$/ s|^# ||g' /etc/pacman.conf
 
-  #     - name: Move Checkout
-  #       run: |
-  #         $path = "${{ steps.facts.outputs.drive }}\_"
-  #         If (Test-Path "$path") { rm -r -fo "$path" }
-  #         Move-Item -Path ".\temp" -Destination "$path"
+      - name: Update using staging
+        run: |
+          msys2 -c 'pacman --noconfirm -Suuy'
+          msys2 -c 'pacman --noconfirm -Suu'
 
-  #     - name: install jank clang64 compiler
-  #       shell: msys2 {0}
-  #       run: |
-  #         cd "$(cygpath '${{ steps.facts.outputs.drive }}/_')"
-  #         cd compiler+runtime
-  #         ./bin/msys2-clang64-install.sh
-  #         clang++ --version
+      - name: Move Checkout
+        run: |
+          $path = "${{ steps.facts.outputs.drive }}\_"
+          If (Test-Path "$path") { rm -r -fo "$path" }
+          Move-Item -Path ".\temp" -Destination "$path"
 
-  #     - name: build
-  #       shell: msys2 {0}
-  #       run: |
-  #         cd "$(cygpath '${{ steps.facts.outputs.drive }}/_')"
-  #         cd compiler+runtime
-  #         ./bin/configure -GNinja -DCMAKE_BUILD_TYPE=Release -Djank_test=on
-  #         ./bin/compile
+      - name: install jank clang64 compiler
+        shell: msys2 {0}
+        run: |
+          cd "$(cygpath '${{ steps.facts.outputs.drive }}/_')"
+          cd compiler+runtime
+          # ./bin/msys2-clang64-install.sh
+          ./bin/build-clang -i
+          clang++ --version
 
-  #     - name: test
-  #       shell: msys2 {0}
-  #       run: |
-  #         cd "$(cygpath '${{ steps.facts.outputs.drive }}/_')"
-  #         cd compiler+runtime
-  #         build/jank check-health
+      - name: build
+        shell: msys2 {0}
+        run: |
+          cd "$(cygpath '${{ steps.facts.outputs.drive }}/_')"
+          cd compiler+runtime
+          ./bin/configure -GNinja -DCMAKE_BUILD_TYPE=Release -Djank_test=on
+          ./bin/compile
+
+      - name: test
+        shell: msys2 {0}
+        run: |
+          cd "$(cygpath '${{ steps.facts.outputs.drive }}/_')"
+          cd compiler+runtime
+          build/jank check-health
