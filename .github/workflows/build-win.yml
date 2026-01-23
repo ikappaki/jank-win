@@ -79,10 +79,10 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          path: temp
-          fetch-depth: 0
-          filter: blob:none
-          persist-credentials: false
+          # path: temp
+          # fetch-depth: 0
+          # filter: blob:none
+          # persist-credentials: false
           submodules: recursive
 
       - uses: msys2/setup-msys2@v2
@@ -92,22 +92,22 @@ jobs:
           update: true
           location: '${{ steps.facts.outputs.drive }}\M'
 
-      - name: Add staging repo
-        shell: msys2 {0}
-        run: |
-          cp /etc/pacman.conf /etc/pacman.conf.bak
-          grep -qFx '[staging]' /etc/pacman.conf || sed -i '/^# \[staging\]/,/^$/ s|^# ||g' /etc/pacman.conf
+      # - name: Add staging repo
+      #   shell: msys2 {0}
+      #   run: |
+      #     cp /etc/pacman.conf /etc/pacman.conf.bak
+      #     grep -qFx '[staging]' /etc/pacman.conf || sed -i '/^# \[staging\]/,/^$/ s|^# ||g' /etc/pacman.conf
 
-      - name: Update using staging
-        run: |
-          msys2 -c 'pacman --noconfirm -Suuy'
-          msys2 -c 'pacman --noconfirm -Suu'
+      # - name: Update using staging
+      #   run: |
+      #     msys2 -c 'pacman --noconfirm -Suuy'
+      #     msys2 -c 'pacman --noconfirm -Suu'
 
-      - name: Move Checkout
-        run: |
-          $path = "${{ steps.facts.outputs.drive }}\_"
-          If (Test-Path "$path") { rm -r -fo "$path" }
-          Move-Item -Path ".\temp" -Destination "$path"
+      # - name: Move Checkout
+      #   run: |
+      #     $path = "${{ steps.facts.outputs.drive }}\_"
+      #     If (Test-Path "$path") { rm -r -fo "$path" }
+      #     Move-Item -Path ".\temp" -Destination "$path"
 
       - name: Cache Clang/LLVM
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
