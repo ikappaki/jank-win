@@ -57,7 +57,7 @@ llvm_url="https://github.com/jank-lang/llvm-project.git"
 llvm_branch="jank"
 llvm_dest_dir="${srcdir}/llvm-install"
 llvm_build_dir="${srcdir}/llvm-build"
-if [[ -n "$MSYSTEM" ]]; then
+if [[ -n "${MSYSTEM:-}" ]]; then
     llvm_src_dir="${llvm_build_dir}/src"
     llvm_mingw_pkg_dir="${here}/../third-party/MINGW-packages/mingw-w64-llvm"
 else
@@ -65,7 +65,7 @@ else
 fi
 
 if [[ ${install} == 1 ]]; then
-   if [[ -n "$MSYSTEM" ]]; then
+   if [[ -n "${MSYSTEM:-}" ]]; then
        pacman -U  ${llvm_dest_dir}/*.tar.zst
        exit 0
    else
@@ -90,7 +90,7 @@ function prepare()
 
   mkdir -p ${llvm_build_dir}
 
-  if [[ -n "$MSYSTEM" ]]; then
+  if [[ -n "${MSYSTEM:-}" ]]; then
       pacman --noconfirm -S base-devel git
       cp ${llvm_mingw_pkg_dir}/* ${llvm_build_dir}
       llvm_git_hash=$(git -C ${llvm_src_dir} rev-parse --short HEAD)
@@ -136,7 +136,7 @@ function build_mingw()
 }
 
 prepare
-if [[ -n "$MSYSTEM" ]]; then build_mingw; else build; fi
+if [[ -n "${MSYSTEM:-}" ]]; then build_mingw; else build; fi
 
 echo
 echo "Clang/LLVM successfully compiled. You can now build jank."

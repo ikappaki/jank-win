@@ -6,14 +6,34 @@ This repository contains **jank** ported to Windows, based on a snapshot taken j
 
 The only current functional limitation is that exceptions thrown by the C++ backend are not yet supported. An [open ticket](https://github.com/llvm/llvm-project/issues/126365) has been filed in the`llvm-project`.
 
-## Building jank
-
+## Compiling Clang/LLVM
 First, [install MSYS2](https://www.msys2.org/). MSYS2 provides a Unix like environment and toolchains for building native Windows software. Each MSYS2 installation is fully isolated when installed in a separate directory.
 
 Open the **MSYS2 CLANG64** shell and install `git`:
 ```sh
 pacman -S git
 ```
+
+Build Clang/LLVM:
+```
+cd compiler+runtime
+mkdir -p build
+./bin/build-clang
+```
+
+It is recommended to install a fresh `MSYS2` instance dedicated to installing LLVM and building jank.
+
+Open the new **MSYS2 CLANG64** shell and install LLVM:
+```sh
+cd compiler+runtime
+./bin/build-clang -i
+```
+
+You can now configure and build jank as usual.
+
+## Building jank
+
+Open the **MSYS CLANG64** shell where LLVM was installed.
 
 Clone the jank-win repository:
 ```sh
@@ -70,35 +90,6 @@ cd compiler+runtime
 ```sh
 cd compiler+runtime
 ./build/jank-test
-```
-
-## Compiling Clang/LLVM
-
-Instead of using [precompiled binaries](https://github.com/ikappaki/MINGW-packages/releases), you can build Clang/LLVM locally with the required jank patches.
-
-Open an MSYS2 **CLANG64** shell and follow these steps:
-
-Clone the patched MSYS2 `MINGW-packages` repository and build the LLVM packages:
-```sh
-# Clone the repository
-git clone https://github.com/ikappaki/MINGW-packages.git
-
-# Switch to the branch with the jank Clang 21 patches
-git switch jank-clang-21
-
-# Install essential build dependencies
-pacman -S base-devel git
-
-# Build the LLVM packages (this may take an hour or two)
-cd mingw-w64-llvm
-makepkg-mingw -sLf --skipchecksums --skippgpcheck --nocheck
-
-```
-
-Install the built packages into your environment:
-```sh
-pacman -U ./*.pkg.tar.zst
-
 ```
 
 ----

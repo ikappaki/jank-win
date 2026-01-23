@@ -109,6 +109,13 @@ jobs:
           If (Test-Path "$path") { rm -r -fo "$path" }
           Move-Item -Path ".\temp" -Destination "$path"
 
+      - name: Cache Clang/LLVM
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: |
+            ${{ github.workspace }}/compiler+runtime/build/llvm-install
+          key: clang-${{ runner.os }}-${{ hashFiles('compiler+runtime/bin/build-clang', 'compiler+runtime/third-party/MINGW-packages/mingw-w64-llvm/**') }}
+
       - name: install jank clang64 compiler
         shell: msys2 {0}
         run: |
