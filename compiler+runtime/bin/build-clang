@@ -66,7 +66,7 @@ fi
 
 if [[ ${install} == 1 ]]; then
    if [[ -n "${MSYSTEM:-}" ]]; then
-       pacman -U  ${llvm_dest_dir}/*.tar.zst
+       pacman --noconfirm -U ${llvm_dest_dir}/*.tar.zst
        exit 0
    else
        echo "Binary package installation is only supported in the MSYS2 CLANG environment on Windows."
