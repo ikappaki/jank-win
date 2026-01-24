@@ -225,7 +225,7 @@ int main(int argc, const char** argv)
           "-lm",
           "-lstdc++",
 #if defined(__MINGW64__)
-          "-lLLVM-21",
+          "-lLLVM-21git",
 #else
           "-lLLVM",
 #endif
