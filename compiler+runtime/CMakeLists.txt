@@ -319,6 +319,20 @@ set(jank_lib_standalone_deps
   folly_lib
   clangCppInterOp
 )
+
+if(WIN32)
+add_custom_command(
+  DEPENDS ${CMAKE_SOURCE_DIR}/third-party/libchkstk/libchkstk.S
+  OUTPUT ${CMAKE_BINARY_DIR}/libchkstk.a
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  COMMAND ${CMAKE_SOURCE_DIR}/third-party/libchkstk/build.bat
+)
+add_custom_target(libchkstk
+  DEPENDS ${CMAKE_BINARY_DIR}/libchkstk.a
+)
+list(APPEND jank_lib_standalone_deps libchkstk)
+endif()
+
 add_custom_command(
   DEPENDS ${jank_lib_standalone_deps}
   OUTPUT ${CMAKE_BINARY_DIR}/libjank-standalone-phase-1.a
@@ -717,11 +731,6 @@ target_compile_options(jank_exe_phase_1 PUBLIC ${jank_common_compiler_flags} ${j
 target_include_directories(jank_exe_phase_1 SYSTEM PRIVATE "$<TARGET_PROPERTY:jank_lib,INCLUDE_DIRECTORIES>")
 target_link_directories(jank_exe_phase_1 PRIVATE "$<TARGET_PROPERTY:jank_lib,LINK_DIRECTORIES>")
 target_link_options(jank_exe_phase_1 PRIVATE ${jank_linker_flags} -L ${CMAKE_BINARY_DIR})
-
-if(WIN32)
-  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/third-party/libchkstk/libchkstk.a"
-       DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
-endif()
 
 target_link_libraries(
   jank_exe_phase_1 PUBLIC
