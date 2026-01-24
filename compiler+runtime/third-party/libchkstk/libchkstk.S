@@ -3,9 +3,9 @@
 # libgcc, no work happens if the stack is already committed. Execute
 # this source with a shell to build libchkstk.a.
 # This is free and unencumbered software released into the public domain.
-set -ex
-${CC:-cc} -c -DCHKSTK_MS -Wa,--no-pad-sections -o chkstk_ms.o $0
-${CC:-cc} -c -DCHKSTK    -Wa,--no-pad-sections -o chkstk.o    $0
+#set -ex
+${CC:-cc} -c -DCHKSTK_MS -o chkstk_ms.o $0
+${CC:-cc} -c -DCHKSTK    -o chkstk.o    $0
 rm -f "${DESTDIR}libchkstk.a"
 ${AR:-ar} r "${DESTDIR}libchkstk.a" chkstk_ms.o chkstk.o
 rm chkstk_ms.o chkstk.o
