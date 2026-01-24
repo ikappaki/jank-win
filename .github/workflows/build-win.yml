@@ -79,7 +79,6 @@ jobs:
         shell: msys2 {0}
         run: |
           cd compiler+runtime
-          # ./bin/msys2-clang64-install.sh
           ./bin/build-clang -i
           clang++ --version
 
