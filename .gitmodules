@@ -1,6 +1,6 @@
 [submodule "compiler+runtime/third-party/folly"]
 	path = compiler+runtime/third-party/folly
-	url = https://github.com/jank-lang/folly.git
+	url = https://github.com/ikappaki/jank-folly.git
 [submodule "compiler+runtime/third-party/immer"]
 	path = compiler+runtime/third-party/immer
 	url = https://github.com/jank-lang/immer.git
