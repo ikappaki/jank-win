@@ -19,7 +19,7 @@
 Version: %s
 Architecture: amd64
 Maintainer: Jeaye Wilkerson <jeaye@jank-lang.org>
-Depends: libssl-dev, gcc, libzip-dev, libxml2-dev, libstdc++-14-dev
+Depends: libssl-dev, gcc, libbz2-dev, libzstd-dev, libxml2-dev, libstdc++-14-dev, zlib1g-dev
 Description: The native Clojure dialect hosted on LLVM with seamless C++ interop.
 " jank-version)]
     (util/quiet-shell {:dir compiler+runtime-dir
@@ -40,7 +40,7 @@ Description: The native Clojure dialect hosted on LLVM with seamless C++ interop
                        :extra-env {"DESTDIR" dir}}
                       "./bin/install")
     (util/quiet-shell {:dir compiler+runtime-dir}
-                      (format "tar xf %s %s" tarball dir))
+                      (format "tar czf %s %s" tarball dir))
     (when-some [gh-output (util/get-env "GITHUB_OUTPUT")]
       (b.f/copy (format "%s/%s" compiler+runtime-dir tarball) tarball)
       (spit gh-output (format "homebrew-tarball=%s" tarball)))))

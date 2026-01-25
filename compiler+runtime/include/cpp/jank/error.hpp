@@ -14,6 +14,7 @@ namespace cpptrace
 
 namespace jank::error
 {
+  /* TODO: Rename internal failures to have correct prefix. i.e. lex_internal_failure. */
   enum class kind : u8
   {
     lex_unexpected_eof,
@@ -93,14 +94,19 @@ namespace jank::error
     analyze_unresolved_cpp_symbol,
     analyze_invalid_cpp_raw,
     analyze_invalid_cpp_type,
+    analyze_invalid_cpp_type_position,
     analyze_invalid_cpp_value,
     analyze_invalid_cpp_cast,
+    analyze_invalid_cpp_unsafe_cast,
     analyze_invalid_cpp_box,
     analyze_invalid_cpp_unbox,
     analyze_invalid_cpp_new,
     analyze_invalid_cpp_delete,
     analyze_invalid_cpp_member_access,
     analyze_invalid_cpp_capture,
+    analyze_invalid_cpp_position,
+    analyze_mismatched_if_types,
+    analyze_known_issue,
     internal_analyze_failure,
 
     internal_codegen_failure,
@@ -110,8 +116,15 @@ namespace jank::error
     internal_aot_failure,
 
     system_clang_executable_not_found,
-    internal_system_failure,
+    system_failure,
 
+    runtime_module_not_found,
+    runtime_module_binary_without_source,
+    runtime_unable_to_open_file,
+    runtime_invalid_cpp_eval,
+    runtime_unable_to_load_module,
+    runtime_invalid_unbox,
+    runtime_non_metadatable_value,
     internal_runtime_failure,
 
     internal_failure,
@@ -191,7 +204,7 @@ namespace jank::error
       case kind::parse_invalid_reader_gensym:
         return "parse/invalid-reader-gensym";
       case kind::parse_invalid_reader_symbolic_value:
-        return "parse_invalid_reader_symbolic-value";
+        return "parse/invalid-reader-symbolic-value";
       case kind::parse_invalid_reader_tag_value:
         return "parse/invalid-reader-tag-value";
       case kind::parse_invalid_regex:
@@ -274,10 +287,14 @@ namespace jank::error
         return "analyze/invalid-cpp-raw";
       case kind::analyze_invalid_cpp_type:
         return "analyze/invalid-cpp-type";
+      case kind::analyze_invalid_cpp_type_position:
+        return "analyze/invalid-cpp-type-position";
       case kind::analyze_invalid_cpp_value:
         return "analyze/invalid-cpp-value";
       case kind::analyze_invalid_cpp_cast:
         return "analyze/invalid-cpp-cast";
+      case kind::analyze_invalid_cpp_unsafe_cast:
+        return "analyze/invalid-cpp-unsafe-cast";
       case kind::analyze_invalid_cpp_box:
         return "analyze/invalid-cpp-box";
       case kind::analyze_invalid_cpp_unbox:
@@ -290,6 +307,12 @@ namespace jank::error
         return "analyze/invalid-cpp-member-access";
       case kind::analyze_invalid_cpp_capture:
         return "analyze/invalid-cpp-capture";
+      case kind::analyze_invalid_cpp_position:
+        return "analyze/invalid-cpp-position";
+      case kind::analyze_mismatched_if_types:
+        return "analyze/mismatched-if-types";
+      case kind::analyze_known_issue:
+        return "analyze/known-issue";
       case kind::internal_analyze_failure:
         return "internal/analysis-failure";
 
@@ -305,11 +328,26 @@ namespace jank::error
 
       case kind::system_clang_executable_not_found:
         return "system/clang-executable-not-found";
-      case kind::internal_system_failure:
-        return "internal/system-failure";
+      case kind::system_failure:
+        return "system/failure";
 
+      case kind::runtime_module_not_found:
+        return "runtime/module-not-found";
+      case kind::runtime_module_binary_without_source:
+        return "runtime/module-binary-without-source";
+      case kind::runtime_unable_to_open_file:
+        return "runtime/unable-to-open-file";
+      case kind::runtime_invalid_cpp_eval:
+        return "runtime/invalid-cpp-eval";
+      case kind::runtime_unable_to_load_module:
+        return "runtime/unable-to-load-module";
+      case kind::runtime_invalid_unbox:
+        return "runtime/invalid-unbox";
+      case kind::runtime_non_metadatable_value:
+        return "runtime/non-metadatable-value";
       case kind::internal_runtime_failure:
         return "internal/runtime-failure";
+
       case kind::internal_failure:
         return "internal/failure";
     }
@@ -350,28 +388,31 @@ namespace jank::error
 
   /* We need gc_cleanup to run the dtor for the unique_ptr<stacktrace>. This
    * is because cpptrace doesn't use our GC allocator. */
-  struct base : gc_cleanup
+  struct base
   {
+    static constexpr bool is_error{ true };
+
     base() = delete;
     base(base const &) = delete;
     base(base &&) noexcept = default;
     base(kind k, read::source const &source);
     base(kind k, read::source const &source, native_vector<note> const &notes);
+    base(kind k, read::source const &source, runtime::object_ref const expansion);
     base(kind k, jtl::immutable_string const &message, read::source const &source);
     base(kind k,
          jtl::immutable_string const &message,
          read::source const &source,
-         runtime::object_ref expansion);
+         runtime::object_ref const expansion);
     base(kind k,
          jtl::immutable_string const &message,
          read::source const &source,
-         runtime::object_ref expansion,
+         runtime::object_ref const expansion,
          std::unique_ptr<cpptrace::stacktrace> trace);
     base(kind k,
          jtl::immutable_string const &message,
          read::source const &source,
          jtl::immutable_string const &note_message,
-         runtime::object_ref expansion);
+         runtime::object_ref const expansion);
     base(kind k, read::source const &source, jtl::immutable_string const &note_message);
     base(kind k,
          jtl::immutable_string const &message,
@@ -386,7 +427,7 @@ namespace jank::error
          jtl::immutable_string const &message,
          read::source const &source,
          note const &note,
-         runtime::object_ref expansion);
+         runtime::object_ref const expansion);
     base(kind k,
          jtl::immutable_string const &message,
          read::source const &source,
@@ -394,12 +435,12 @@ namespace jank::error
     base(kind k,
          jtl::immutable_string const &message,
          read::source const &source,
-         runtime::object_ref expansion,
+         runtime::object_ref const expansion,
          jtl::ref<base> cause);
     base(kind k,
          jtl::immutable_string const &message,
          read::source const &source,
-         runtime::object_ref expansion,
+         runtime::object_ref const expansion,
          jtl::ref<base> cause,
          std::unique_ptr<cpptrace::stacktrace> trace);
 
@@ -430,5 +471,13 @@ namespace jank
   error_ref make_error(Args &&...args)
   {
     return jtl::make_ref<error::base>(jtl::forward<Args>(args)...);
+  }
+
+  namespace error
+  {
+    error_ref internal_failure(jtl::immutable_string const &message);
+    /* This can be used by jtl helpers which can't reach into jank but which fail. */
+    [[noreturn]]
+    void throw_internal_failure(jtl::immutable_string const &message);
   }
 }

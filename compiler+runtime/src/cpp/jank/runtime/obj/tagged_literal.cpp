@@ -26,8 +26,7 @@ namespace jank::runtime::obj
     return runtime::equal(tag, s->tag) && runtime::equal(form, s->form);
   }
 
-  static void
-  to_string_impl(object_ref const &tag, object_ref const &form, jtl::string_builder &buff)
+  static void to_string_impl(object_ref const tag, object_ref const form, jtl::string_builder &buff)
   {
     buff('#');
     runtime::to_string(tag, buff);
@@ -54,12 +53,7 @@ namespace jank::runtime::obj
 
   uhash tagged_literal::to_hash() const
   {
-    if(hash)
-    {
-      return hash;
-    }
-
-    return hash = hash::combine(hash::visit(tag.get()), hash::visit(form.get()));
+    return hash::combine(hash::visit(tag.get()), hash::visit(form.get()));
   }
 
   object_ref tagged_literal::get(object_ref const key, object_ref const fallback) const
@@ -82,7 +76,7 @@ namespace jank::runtime::obj
 
   object_ref tagged_literal::get(object_ref const key) const
   {
-    return get(key, jank_nil);
+    return get(key, jank_nil());
   }
 
   object_ref tagged_literal::get_entry(object_ref const key) const
@@ -100,7 +94,7 @@ namespace jank::runtime::obj
       return make_box<persistent_vector>(std::in_place, form_kw, form);
     }
 
-    return jank_nil;
+    return jank_nil();
   }
 
   bool tagged_literal::contains(object_ref const key) const

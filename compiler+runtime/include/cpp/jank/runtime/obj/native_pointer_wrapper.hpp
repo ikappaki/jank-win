@@ -6,7 +6,7 @@ namespace jank::runtime::obj
 {
   using native_pointer_wrapper_ref = oref<struct native_pointer_wrapper>;
 
-  struct native_pointer_wrapper : gc
+  struct native_pointer_wrapper
   {
     static constexpr object_type obj_type{ object_type::native_pointer_wrapper };
     static constexpr bool pointer_free{ false };
@@ -29,6 +29,7 @@ namespace jank::runtime::obj
       return reinterpret_cast<T *>(data);
     }
 
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
     void *data{};
   };

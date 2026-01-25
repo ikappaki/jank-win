@@ -23,6 +23,7 @@ namespace jtl
 
   using uptr = unsigned long long;
   using usize = uptr;
+  using ssize = long long;
   using uhash = u32;
   using nullptr_t = decltype(nullptr);
 
@@ -49,14 +50,35 @@ namespace jtl
     other_unix_like
   };
 
+  constexpr char const *platform_str(platform const p)
+  {
+    switch(p)
+    {
+      case platform::linux_like:
+        return "linux-like";
+      case platform::macos_like:
+        return "macos-like";
+      case platform::windows_like:
+        return "windows-like";
+      case platform::other_unix_like:
+        return "other unix-like";
+      default:
+        return "unknown";
+    }
+  }
+
   static constexpr platform const current_platform{
 #if defined(_WIN32) || defined(__CYGWIN__)
+  #define JANK_WINDOWS_LIKE
     platform::windows_like
 #elif defined(__linux__)
+  #define JANK_LINUX_LIKE
     platform::linux_like
 #elif defined(__APPLE__) && defined(__MACH__)
+  #define JANK_MACOS_LIKE
     platform::macos_like
 #elif defined(unix) || defined(__unix__) || defined(__unix)
+  #define JANK_OTHER_UNIX_LIKE
     platform::other_unix_like
 #else
   #error Unsupported environment.
@@ -83,6 +105,7 @@ namespace jank
 
   using jtl::uptr;
   using jtl::usize;
+  using jtl::ssize;
   using jtl::uhash;
   using jtl::nullptr_t;
 }

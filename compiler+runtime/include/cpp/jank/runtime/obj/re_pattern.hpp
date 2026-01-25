@@ -9,7 +9,7 @@ namespace jank::runtime::obj
 {
   using re_pattern_ref = oref<struct re_pattern>;
 
-  struct re_pattern : gc_cleanup
+  struct re_pattern
   {
     static constexpr object_type obj_type{ object_type::re_pattern };
     static constexpr bool pointer_free{ false };
@@ -23,8 +23,8 @@ namespace jank::runtime::obj
     jtl::immutable_string to_code_string() const;
     uhash to_hash() const;
 
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
-
     jtl::immutable_string pattern{};
     std::regex regex{};
   };

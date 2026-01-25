@@ -8,15 +8,13 @@ namespace jank::runtime::obj
 {
   using cons_ref = oref<struct cons>;
 
-  struct cons : gc
+  struct cons
   {
     static constexpr object_type obj_type{ object_type::cons };
     static constexpr bool pointer_free{ false };
     static constexpr bool is_sequential{ true };
 
     cons() = default;
-    cons(cons &&) noexcept = default;
-    cons(cons const &) = default;
     cons(object_ref const head, object_ref const tail);
 
     /* behavior::object_like */
@@ -27,7 +25,7 @@ namespace jank::runtime::obj
     uhash to_hash() const;
 
     /* behavior::metadatable */
-    cons_ref with_meta(object_ref m) const;
+    cons_ref with_meta(object_ref const m) const;
 
     /* behavior::seqable */
     cons_ref seq() const;
@@ -38,12 +36,15 @@ namespace jank::runtime::obj
     object_ref next() const;
 
     /* behavior::conjable */
-    cons_ref conj(object_ref head) const;
+    cons_ref conj(object_ref const head) const;
 
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
     object_ref head{};
     object_ref tail{};
-    mutable uhash hash{};
     jtl::option<object_ref> meta;
+
+    /*** XXX: Everything here is thread-safe. ***/
+    mutable std::atomic<uhash> hash{};
   };
 }

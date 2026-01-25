@@ -136,12 +136,7 @@ namespace jank::runtime::obj
 
   uhash symbol::to_hash() const
   {
-    if(hash)
-    {
-      return hash;
-    }
-
-    return hash = hash::combine(hash::string(name), hash::string(ns));
+    return hash::combine(hash::string(name), hash::string(ns));
   }
 
   symbol_ref symbol::with_meta(object_ref const m) const
@@ -171,18 +166,6 @@ namespace jank::runtime::obj
   {
     return compare(rhs) < 0;
   }
-
-  void symbol::set_ns(jtl::immutable_string const &s)
-  {
-    ns = s;
-    hash = 0;
-  }
-
-  void symbol::set_name(jtl::immutable_string const &s)
-  {
-    name = s;
-    hash = 0;
-  }
 }
 
 namespace std
@@ -194,14 +177,14 @@ namespace std
   }
 
   size_t hash<jank::runtime::obj::symbol_ref>::operator()(
-    jank::runtime::obj::symbol_ref const &o) const noexcept
+    jank::runtime::obj::symbol_ref const o) const noexcept
   {
     return o->to_hash();
   }
 
   bool equal_to<jank::runtime::obj::symbol_ref>::operator()(
-    jank::runtime::obj::symbol_ref const &lhs,
-    jank::runtime::obj::symbol_ref const &rhs) const noexcept
+    jank::runtime::obj::symbol_ref const lhs,
+    jank::runtime::obj::symbol_ref const rhs) const noexcept
   {
     if(lhs.is_nil())
     {

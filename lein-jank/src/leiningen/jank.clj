@@ -4,9 +4,12 @@
             [babashka.fs :as b.f]
             [clojure.pprint :as pp]
             [clojure.string :as string]
+            [leiningen.core.project :as p]
             [leiningen.core.classpath :as lcp]
             [leiningen.core.main :as lmain])
   (:import [java.io File]))
+
+(defonce verbose? (atom false))
 
 (defn build-declarative-flag [flag value]
   (case flag
@@ -23,7 +26,7 @@
     (str "--codegen " (name value))
 
     :defines
-    (map (fn [[k v]] (str "-D" k "=" v)) value) 
+    (map (fn [[k v]] (str "-D" k "=" v)) value)
 
     :include-dirs
     (map (fn [v] (str "-I" v)) value)
@@ -31,7 +34,7 @@
     :library-dirs
     (map (fn [v] (str "-L" v)) value)
 
-    :linked-libraries 
+    :linked-libraries
     (map (fn [v] (str "-l" v)) value)
 
     (lmain/warn (str "Unknown flag " flag))))
@@ -41,7 +44,6 @@
                   (build-declarative-flag flag value))
                 (:jank project))))
 
-
 (defn shell-out! [project classpath command compiler-args runtime-args]
   (let [jank (b.f/which "jank")
         env (System/getenv)
@@ -49,12 +51,18 @@
                      (build-declarative-flags project)
                      compiler-args
                      ["--"]
-                     runtime-args)]
-    (assert (some? jank))
-    (apply ps/shell
-           {:dir (:root project)
-            :extra-env env}
-           args)))
+                     runtime-args)
+        ; TODO: Better error handling.
+        _ (assert (some? jank))
+        _ (when @verbose?
+            (println ">" (clojure.string/join " " args)))
+        proc (apply ps/shell
+                    {:continue true
+                     :dir (:root project)
+                     :extra-env env}
+                    args)]
+    (when-not (zero? (:exit proc))
+      (System/exit (:exit proc)))))
 
 (defn build-module-path [project]
   (->> project
@@ -62,7 +70,7 @@
        (string/join File/pathSeparatorChar)))
 
 (defn run!
-  "Runs your project, starting at the main entrypoint."
+  "Run your project, starting at the main entrypoint."
   [project & args]
   (let [cp-str (build-module-path project)]
     (if (:main project)
@@ -72,7 +80,7 @@
         (lmain/exit 1)))))
 
 (defn repl!
-  "Starts a terminal REPL in your :main ns."
+  "Start a terminal REPL in your :main ns."
   [project & args]
   (let [cp-str (build-module-path project)]
     (if (:main project)
@@ -82,23 +90,23 @@
         (lmain/exit 1)))))
 
 (defn compile!
-  "Compiles your project to an executable."
+  "Compile your project to an executable."
   [project & args]
   (let [cp-str (build-module-path project)]
     (if (:main project)
-      (shell-out! project cp-str "compile" [(:main project)] project args)
+      (shell-out! project cp-str "compile" [(:main project)] args)
       (do
         (lmain/warn "No :main entrypoint for project.")
         (lmain/exit 1)))))
 
 (defn compile-module!
-  "Compiles a single module and its dependencies to object files."
+  "Compile a single module and its dependencies to object files."
   [project & args]
   (let [cp-str (build-module-path project)]
     (shell-out! project cp-str "compile-module" [] args)))
 
 (defn check-health!
-  "Performs a health check on your jank install."
+  "Perform a health check on your jank install."
   [project & args]
   (let [cp-str (build-module-path project)]
     (shell-out! project cp-str "check-health" [] args)))
@@ -121,13 +129,62 @@
             :help (-> fn-ref meta :doc)})
          subtask-kw->var)))
 
+(defn process-args [args]
+  (loop [args args
+         ret []]
+    (if (empty? args)
+      ret
+      (let [arg (first args)
+            ret (case arg
+                  "-v" (do
+                         (reset! verbose? true)
+                         ret)
+                  (conj ret arg))]
+        (recur (rest args) ret)))))
+
 (defn jank
   "Compile, run and repl into jank."
   [project subcmd & args]
   ;(clojure.pprint/pprint (:jank project))
   (if-some [handler (subtask-kw->var (keyword subcmd))]
-    (apply handler project args)
+    (apply handler project (process-args args))
     (do
       (lmain/warn "Invalid subcommand!")
       (print-help!)
       (lmain/exit 1))))
+
+(def default-project {:aliases {"run" ^{:doc "Run your project, starting at the main entrypoint."}
+                                ["jank" "run"]
+
+                                "repl" ^{:doc "Start a terminal REPL in your :main ns."}
+                                ["jank" "repl"]
+
+                                "compile" ^{:doc "Compile your project to an executable."}
+                                ["jank" "compile"]
+
+                                "compile-module" ^{:doc "Compile a single module and its dependencies to object files."}
+                                ["jank" "compile-module"]
+
+                                "test" ^{:doc "Run your project's test suite."}
+                                ["jank" "test"]
+
+                                "check-health" ^{:doc "Perform a health check on your jank install."}
+                                ["jank" "check-health"]}})
+
+(defn deep-merge* [& maps]
+  (let [f (fn [old new]
+            (if (and (map? old) (map? new))
+              (merge-with deep-merge* old new)
+              new))]
+    (if (every? map? maps)
+      (apply merge-with f maps)
+      (last maps))))
+
+(defn deep-merge [& maps]
+  (let [maps (filter some? maps)]
+    (apply merge-with deep-merge* maps)))
+
+(defn middleware
+  "Inject jank project details into your current project."
+  [project]
+  (deep-merge default-project project))

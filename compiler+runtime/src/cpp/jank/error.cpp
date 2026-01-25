@@ -154,6 +154,10 @@ namespace jank::error
         return "Invalid C++ member function call.";
       case kind::analyze_invalid_cpp_capture:
         return "Invalid C++ capture.";
+      case kind::analyze_invalid_cpp_position:
+        return "Unable to use this form as a first-class value. It needs to be called directly.";
+      case kind::analyze_mismatched_if_types:
+        return "Mismatched if types.";
       case kind::analyze_invalid_cpp_function_call:
         return "Invalid C++ function call.";
       case kind::analyze_invalid_cpp_call:
@@ -168,10 +172,14 @@ namespace jank::error
         return "Invalid C++ raw.";
       case kind::analyze_invalid_cpp_type:
         return "Invalid C++ type.";
+      case kind::analyze_invalid_cpp_type_position:
+        return "Invalid position for a C++ type.";
       case kind::analyze_invalid_cpp_value:
         return "Invalid C++ value.";
       case kind::analyze_invalid_cpp_cast:
         return "Invalid C++ cast.";
+      case kind::analyze_invalid_cpp_unsafe_cast:
+        return "Invalid C++ unsafe-cast.";
       case kind::analyze_invalid_cpp_box:
         return "Invalid C++ box.";
       case kind::analyze_invalid_cpp_unbox:
@@ -182,6 +190,8 @@ namespace jank::error
         return "Invalid C++ delete.";
       case kind::analyze_invalid_cpp_member_access:
         return "Invalid C++ member access.";
+      case kind::analyze_known_issue:
+        return "Known issue.";
       case kind::internal_analyze_failure:
         return "Internal analysis failure.";
 
@@ -197,11 +207,26 @@ namespace jank::error
 
       case kind::system_clang_executable_not_found:
         return "Unable to find a suitable Clang " JANK_CLANG_MAJOR_VERSION " binary.";
-      case kind::internal_system_failure:
-        return "Internal system failure.";
+      case kind::system_failure:
+        return "System failure.";
 
+      case kind::runtime_module_not_found:
+        return "Module not found.";
+      case kind::runtime_module_binary_without_source:
+        return "Module binary found, but no corresponding source was found.";
+      case kind::runtime_unable_to_open_file:
+        return "Unable to open file.";
+      case kind::runtime_invalid_cpp_eval:
+        return "Unable to compile the provided C++ source.";
+      case kind::runtime_unable_to_load_module:
+        return "Unable to load module.";
+      case kind::runtime_invalid_unbox:
+        return "Invalid unbox type.";
+      case kind::runtime_non_metadatable_value:
+        return "Non metadatable value.";
       case kind::internal_runtime_failure:
         return "Internal runtime failure.";
+
       case kind::internal_failure:
         return "Internal failure.";
     }
@@ -219,16 +244,18 @@ namespace jank::error
   {
     auto source{ runtime::object_source(expansion) };
     /* We just want to point at the start of the expansion, not underline the
-       * whole thing. It may be huge! */
+     * whole thing. It may be huge! */
     source.end = source.start;
     e.notes.emplace_back("Expanded from this macro.", source, note::kind::info);
   }
 
   base::base(enum kind const k, read::source const &source)
-    : kind{ k }
+    : kind{
+      k
+  }
     , message{ kind_to_message(k) }
     , source{ source }
-    , notes{{ default_note_message, source }}
+    , notes{ { default_note_message, source } }
   {
   }
 
@@ -240,33 +267,53 @@ namespace jank::error
   {
   }
 
+  base::base(enum kind const k, read::source const &source, runtime::object_ref const expansion)
+    : kind{
+      k
+  }
+    , message{ kind_to_message(k) }
+    , source{ source }
+    , notes{ { default_note_message, source } }
+  {
+    add_expansion_note(*this, expansion);
+  }
+
   base::base(enum kind const k, jtl::immutable_string const &message, read::source const &source)
-    : kind{ k }
+    : kind{
+      k
+  }
     , message{ message }
     , source{ source }
-    , notes{{ default_note_message, source }}
+    , notes{ { default_note_message, source } }
   {
   }
 
-  base::base(enum kind const k, jtl::immutable_string const &message, read::source const &source, runtime::object_ref const expansion)
-    : kind{ k }
+  base::base(enum kind const k,
+             jtl::immutable_string const &message,
+             read::source const &source,
+             runtime::object_ref const expansion)
+    : kind{
+      k
+  }
     , message{ message }
     , source{ source }
-    , notes{{ default_note_message, source }}
+    , notes{ { default_note_message, source } }
   {
     add_expansion_note(*this, expansion);
   }
 
   base::base(enum kind const k,
-         jtl::immutable_string const &message,
-         read::source const &source,
-         runtime::object_ref const expansion,
-         std::unique_ptr<cpptrace::stacktrace> trace)
-    : kind{ k }
+             jtl::immutable_string const &message,
+             read::source const &source,
+             runtime::object_ref const expansion,
+             std::unique_ptr<cpptrace::stacktrace> trace)
+    : kind{
+      k
+  }
     , message{ message }
     , source{ source }
-    , notes{{ default_note_message, source }}
-    , trace{ std::move(trace) }
+    , notes{ { default_note_message, source } },
+    trace{ std::move(trace) }
   {
     add_expansion_note(*this, expansion);
   }
@@ -274,10 +321,12 @@ namespace jank::error
   base::base(enum kind const k,
              read::source const &source,
              jtl::immutable_string const &note_message)
-    : kind{ k }
+    : kind{
+      k
+  }
     , message{ kind_to_message(k) }
     , source{ source }
-    , notes{{ note_message, source }}
+    , notes{ { note_message, source } }
   {
   }
 
@@ -285,10 +334,12 @@ namespace jank::error
              jtl::immutable_string const &message,
              read::source const &source,
              jtl::immutable_string const &note_message)
-    : kind{ k }
+    : kind{
+      k
+  }
     , message{ message }
     , source{ source }
-    , notes{{ note_message, source }}
+    , notes{ { note_message, source } }
   {
   }
 
@@ -297,10 +348,12 @@ namespace jank::error
              read::source const &source,
              jtl::immutable_string const &note_message,
              runtime::object_ref const expansion)
-    : kind{ k }
+    : kind{
+      k
+  }
     , message{ message }
     , source{ source }
-    , notes{{ note_message, source }}
+    , notes{ { note_message, source } }
   {
     add_expansion_note(*this, expansion);
   }
@@ -353,11 +406,13 @@ namespace jank::error
              read::source const &source,
              runtime::object_ref const expansion,
              jtl::ref<base> const cause)
-    : kind{ k }
+    : kind{
+      k
+  }
     , message{ message }
     , source{ source }
-    , notes{{ default_note_message, source }}
-    , cause{ cause }
+    , notes{ { default_note_message, source } },
+    cause{ cause }
   {
     add_expansion_note(*this, expansion);
   }
@@ -368,12 +423,13 @@ namespace jank::error
              runtime::object_ref const expansion,
              jtl::ref<base> const cause,
              std::unique_ptr<cpptrace::stacktrace> trace)
-    : kind{ k }
+    : kind{
+      k
+  }
     , message{ message }
     , source{ source }
-    , notes{{ default_note_message, source }}
-    , cause{ cause }
-    , trace{ std::move(trace) }
+    , notes{ { default_note_message, source } },
+    cause{ cause }, trace{ std::move(trace) }
   {
     add_expansion_note(*this, expansion);
   }
@@ -400,7 +456,7 @@ namespace jank::error
       return lhs.source.start.line < rhs.source.start.line;
     });
     std::ranges::stable_sort(notes, [](note const &lhs, note const &rhs) -> bool {
-      return lhs.source.file_path < rhs.source.file_path;
+      return lhs.source.file < rhs.source.file;
     });
   }
 
@@ -412,11 +468,11 @@ namespace jank::error
    * begin with. In that case, we update the existing note rather than adding a new one. */
   jtl::ref<base> base::add_usage(read::source const &usage_source)
   {
-    if(usage_source == read::source::unknown || usage_source.overlaps(source))
+    if(usage_source == read::source::unknown() || usage_source.overlaps(source))
     {
       return this;
     }
-    else if(source == read::source::unknown)
+    else if(source == read::source::unknown())
     {
       source = usage_source;
       notes[0].source = usage_source;
@@ -431,5 +487,17 @@ namespace jank::error
   std::ostream &operator<<(std::ostream &os, base const &e)
   {
     return os << "error(" << kind_str(e.kind) << " - " << e.source << ", \"" << e.message << "\")";
+  }
+
+  error_ref internal_failure(jtl::immutable_string const &message)
+  {
+    auto const e{ make_error(kind::internal_failure, message, read::source::unknown()) };
+    e->trace = std::make_unique<cpptrace::stacktrace>(cpptrace::generate_trace());
+    return e;
+  }
+
+  void throw_internal_failure(jtl::immutable_string const &message)
+  {
+    throw internal_failure(message);
   }
 }

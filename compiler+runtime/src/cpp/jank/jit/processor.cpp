@@ -1,5 +1,3 @@
-#include <cstdlib>
-
 #include <clang/AST/Type.h>
 #include <clang/Basic/Diagnostic.h>
 #include <clang/Frontend/CompilerInstance.h>
@@ -18,20 +16,23 @@
 
 #include <cpptrace/gdb_jit.hpp>
 
+#include <jank/jit/processor.hpp>
 #include <jank/util/make_array.hpp>
-#include <jank/util/dir.hpp>
+#include <jank/util/environment.hpp>
 #include <jank/util/fmt/print.hpp>
 #include <jank/util/clang.hpp>
+#include <jank/util/clang_format.hpp>
 #include <jank/runtime/context.hpp>
-#include <jank/jit/processor.hpp>
 #include <jank/profile/time.hpp>
+#include <jank/error/system.hpp>
+#include <jank/error/codegen.hpp>
 
 namespace jank::jit
 {
   static jtl::immutable_string default_shared_lib_name(jtl::immutable_string const &lib)
 #if defined(__APPLE__)
   {
-    return util::format("{}.dylib", lib);
+    return util::format("lib{}.dylib", lib);
   }
 #elif defined(__linux__)
   {
@@ -102,6 +103,16 @@ namespace jank::jit
       args.emplace_back(strdup(flag.c_str()));
     }
 
+    if(auto const extra{ getenv("JANK_EXTRA_FLAGS") }; extra)
+    {
+      std::stringstream flags{ extra };
+      std::string flag;
+      while(std::getline(flags, flag, ' '))
+      {
+        args.emplace_back(strdup(flag.c_str()));
+      }
+    }
+
     if(util::cli::opts.debug || util::cli::opts.perf_profiling_enabled)
     {
       args.emplace_back("-g");
@@ -110,18 +121,30 @@ namespace jank::jit
     auto const clang_path_str{ util::find_clang() };
     if(clang_path_str.is_none())
     {
-      /* TODO: Internal system error. */
-      throw std::runtime_error{ "Unable to find Clang." };
+      throw error::system_clang_executable_not_found();
     }
     auto const clang_dir{ std::filesystem::path{ clang_path_str.unwrap().c_str() }.parent_path() };
+
+    /* On macOS, we've seen some nasty issues with FP_NAN, FLT_MAX, and other C stdlib defines
+     * not getting picked up since Clang is defaulting to the system libc++ instead of our
+     * preferred libc++. We get around that by telling Clang to not add stdandard include paths
+     * and we instead add our own. Outside of macOS, we don't use libc++, so this doesn't make
+     * sense to have. */
+    if constexpr(jtl::current_platform == jtl::platform::macos_like)
+    {
+      args.emplace_back("-nostdinc++");
+      args.emplace_back("-I");
+      args.emplace_back(strdup((clang_dir / "../include/c++/v1").c_str()));
+    }
+
     args.emplace_back("-I");
     args.emplace_back(strdup((clang_dir / "../include").string().c_str()));
 
     auto const clang_resource_dir{ util::find_clang_resource_dir() };
     if(clang_resource_dir.is_none())
     {
-      /* TODO: Internal system error. */
-      throw std::runtime_error{ "Unable to find Clang resource dir." };
+      throw error::system_failure(
+        util::format("Unable to find Clang {} resource dir.", JANK_CLANG_MAJOR_VERSION));
     }
     args.emplace_back("-resource-dir");
     args.emplace_back(clang_resource_dir.unwrap().c_str());
@@ -154,6 +177,11 @@ namespace jank::jit
     args.emplace_back(strdup(pch_path_str.c_str()));
 #endif
 
+    args.emplace_back("-w");
+    args.emplace_back("-Wno-c++11-narrowing");
+
+    util::add_system_flags(args);
+
     /********* Every flag after this line is user-provided. *********/
 
     for(auto const &include_path : util::cli::opts.include_dirs)
@@ -173,16 +201,8 @@ namespace jank::jit
 
     //util::println("jit flags {}", args);
 
-#ifdef JANK_SANITIZE
-    /* ASan leads to larger code size, which can run us up against the 32 bit limit of the
-     * default 'small' JIT code model. When we know we're running ASan, we want to opt
-     * into the 'large' code model instead. This may have some marginal perf impact, but
-     * for ASan builds, that's not a problem. */
     interpreter.reset(static_cast<Cpp::Interpreter *>(
       Cpp::CreateInterpreter(args, {}, vfs, static_cast<int>(llvm::CodeModel::Large))));
-#else
-    interpreter.reset(static_cast<Cpp::Interpreter *>(Cpp::CreateInterpreter(args, {}, vfs)));
-#endif
 
     /* Enabling perf support requires registering a couple of plugins with LLVM. These
      * plugins will generate files which perf can then use to inject additional info
@@ -224,8 +244,7 @@ namespace jank::jit
     auto const &load_result{ load_dynamic_libs(util::cli::opts.libs) };
     if(load_result.is_err())
     {
-      /* TODO: Internal system error. */
-      throw std::runtime_error{ load_result.expect_err().c_str() };
+      throw error::system_failure(load_result.expect_err().c_str());
     }
   }
 
@@ -236,11 +255,22 @@ namespace jank::jit
 
   void processor::eval_string(jtl::immutable_string const &s) const
   {
+    eval_string(s, nullptr);
+  }
+
+  void processor::eval_string(jtl::immutable_string const &s, clang::Value * const ret) const
+  {
     profile::timer const timer{ "jit eval_string" };
-    //util::println("// eval_string:\n{}\n", s);
-    auto err(interpreter->ParseAndExecute({ s.data(), s.size() }));
-    /* TODO: Throw on errors. */
-    llvm::logAllUnhandledErrors(std::move(err), llvm::errs(), "error: ");
+    auto const &formatted{ s };
+    /* TODO: There is some sort of immutable_string or result bug here. */
+    //auto const &formatted{ util::format_cpp_source(s).expect_ok() };
+    //util::println("// eval_string:\n{}\n", formatted);
+    auto err(interpreter->ParseAndExecute({ formatted.data(), formatted.size() }, ret));
+    if(err)
+    {
+      llvm::logAllUnhandledErrors(jtl::move(err), llvm::errs(), "error: ");
+      throw error::internal_codegen_failure("Unable to compile C++ source.");
+    }
     register_jit_stack_frames();
   }
 

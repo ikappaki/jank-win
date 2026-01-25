@@ -9,15 +9,13 @@ namespace jank::runtime::obj
   using iterator_ref = oref<struct iterator>;
 
   /* TODO: Rename to iterator_sequence. */
-  struct iterator : gc
+  struct iterator
   {
     static constexpr object_type obj_type{ object_type::iterator };
     static constexpr bool pointer_free{ false };
     static constexpr bool is_sequential{ true };
 
     iterator() = default;
-    iterator(iterator &&) noexcept = default;
-    iterator(iterator const &) = default;
     iterator(object_ref const fn, object_ref const start);
 
     /* behavior::object_like */
@@ -34,16 +32,19 @@ namespace jank::runtime::obj
     /* behavior::sequenceable */
     object_ref first() const;
     iterator_ref next() const;
-    obj::cons_ref conj(object_ref head) const;
+    obj::cons_ref conj(object_ref const head) const;
 
     /* behavior::sequenceable_in_place */
     iterator_ref next_in_place();
 
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
     /* TODO: Support chunking. */
     object_ref fn{};
     object_ref current{};
     object_ref previous{};
-    mutable iterator_ref cached_next{};
+
+    /*** XXX: Everything here is thread-safe. ***/
+    mutable std::atomic<iterator *> cached_next;
   };
 }

@@ -6,6 +6,7 @@
 #include <jank/runtime/context.hpp>
 #include <jank/runtime/behavior/metadatable.hpp>
 #include <jank/util/fmt.hpp>
+#include <jank/error/runtime.hpp>
 
 namespace jank::runtime
 {
@@ -18,15 +19,15 @@ namespace jank::runtime
 
     return visit_object(
       [](auto const typed_m) -> object_ref {
-        using T = typename decltype(typed_m)::value_type;
+        using T = typename jtl::decay_t<decltype(typed_m)>::value_type;
 
         if constexpr(behavior::metadatable<T>)
         {
-          return typed_m->meta.unwrap_or(jank_nil);
+          return typed_m->meta.unwrap_or(jank_nil());
         }
         else
         {
-          return jank_nil;
+          return jank_nil();
         }
       },
       m);
@@ -35,8 +36,8 @@ namespace jank::runtime
   object_ref with_meta(object_ref const o, object_ref const m)
   {
     return visit_object(
-      [](auto const typed_o, object_ref const m) -> object_ref {
-        using T = typename decltype(typed_o)::value_type;
+      [&o](auto const typed_o, object_ref const m) -> object_ref {
+        using T = typename jtl::decay_t<decltype(typed_o)>::value_type;
 
         if constexpr(behavior::metadatable<T>)
         {
@@ -44,9 +45,11 @@ namespace jank::runtime
         }
         else
         {
-          throw std::runtime_error{ util::format("not metadatable: {} [{}]",
-                                                 typed_o->to_code_string(),
-                                                 object_type_str(typed_o->base.type)) };
+          throw error::runtime_non_metadatable_value(
+            util::format("{} [{}] can't hold any metadata.",
+                         typed_o->to_code_string(),
+                         object_type_str(o->type)),
+            object_source(o));
         }
       },
       o,
@@ -60,7 +63,7 @@ namespace jank::runtime
   {
     return visit_object(
       [](auto const typed_o, object_ref const m) -> object_ref {
-        using T = typename decltype(typed_o)::value_type;
+        using T = typename jtl::decay_t<decltype(typed_o)>::value_type;
 
         if constexpr(behavior::metadatable<T>)
         {
@@ -79,7 +82,7 @@ namespace jank::runtime
   {
     return visit_object(
       [](auto const typed_o, object_ref const m) -> object_ref {
-        using T = typename decltype(typed_o)::value_type;
+        using T = typename jtl::decay_t<decltype(typed_o)>::value_type;
 
         if constexpr(behavior::metadatable<T>)
         {
@@ -102,18 +105,20 @@ namespace jank::runtime
   {
     using namespace jank::runtime;
 
-    auto const meta(o.unwrap_or(jank_nil));
+    auto const meta(o.unwrap_or(jank_nil()));
     auto const source(get(meta, __rt_ctx->intern_keyword("jank/source").expect_ok()));
-    if(source == jank_nil)
+    if(source == jank_nil())
     {
-      return read::source::unknown;
+      return read::source::unknown();
     }
 
     auto const file(get(source, __rt_ctx->intern_keyword("file").expect_ok()));
-    if(file == jank_nil)
+    if(file == jank_nil())
     {
-      return read::source::unknown;
+      return read::source::unknown();
     }
+
+    auto const module(get(source, __rt_ctx->intern_keyword("module").expect_ok()));
 
     auto const start(get(source, __rt_ctx->intern_keyword("start").expect_ok()));
     auto const end(get(source, __rt_ctx->intern_keyword("end").expect_ok()));
@@ -130,13 +135,14 @@ namespace jank::runtime
       get(meta, __rt_ctx->intern_keyword("jank/macro-expansion").expect_ok()));
 
     return {
-      to_string(file),
+      runtime::to_string(file),
+      module.is_some() ? to_string(module) : "",
       { static_cast<size_t>(to_int(start_offset)),
-              static_cast<size_t>(to_int(start_line)),
-              static_cast<size_t>(to_int(start_col)) },
+                                           static_cast<size_t>(to_int(start_line)),
+                                           static_cast<size_t>(to_int(start_col)) },
       {   static_cast<size_t>(to_int(end_offset)),
-              static_cast<size_t>(to_int(end_line)),
-              static_cast<size_t>(to_int(end_col))  },
+                                           static_cast<size_t>(to_int(end_line)),
+                                           static_cast<size_t>(to_int(end_col))  },
       macro_expansion
     };
   }
@@ -144,46 +150,66 @@ namespace jank::runtime
   read::source object_source(object_ref const o)
   {
     auto const meta(runtime::meta(o));
-    if(meta == jank_nil)
+    if(meta == jank_nil())
     {
-      return read::source::unknown;
+      return read::source::unknown();
     }
     return meta_source(meta);
+  }
+
+  obj::persistent_hash_map_ref source_to_meta(read::source const &source)
+  {
+    auto const source_map{ obj::persistent_array_map::empty()->to_transient() };
+
+    if(runtime::module::is_core_module(source.module))
+    {
+      source_map->assoc_in_place(__rt_ctx->intern_keyword("module").expect_ok(),
+                                 make_box(source.module));
+    }
+
+    if(source.file != read::no_source_path)
+    {
+      source_map->assoc_in_place(__rt_ctx->intern_keyword("file").expect_ok(),
+                                 make_box(source.file));
+    }
+
+    auto const start_map{ obj::persistent_array_map::create_unique(
+      __rt_ctx->intern_keyword("offset").expect_ok(),
+      make_box(source.start.offset),
+      __rt_ctx->intern_keyword("line").expect_ok(),
+      make_box(source.start.line),
+      __rt_ctx->intern_keyword("col").expect_ok(),
+      make_box(source.start.col)) };
+    auto const end_map{ obj::persistent_array_map::create_unique(
+      __rt_ctx->intern_keyword("offset").expect_ok(),
+      make_box(source.end.offset),
+      __rt_ctx->intern_keyword("line").expect_ok(),
+      make_box(source.end.line),
+      __rt_ctx->intern_keyword("col").expect_ok(),
+      make_box(source.end.col)) };
+    source_map->assoc_in_place(__rt_ctx->intern_keyword("start").expect_ok(), start_map);
+    source_map->assoc_in_place(__rt_ctx->intern_keyword("end").expect_ok(), end_map);
+
+    auto const key{ __rt_ctx->intern_keyword("jank/source").expect_ok() };
+    return obj::persistent_hash_map::create_unique(
+      std::make_pair(key, source_map->to_persistent()));
   }
 
   obj::persistent_hash_map_ref
   source_to_meta(read::source_position const &start, read::source_position const &end)
   {
-    return source_to_meta(__rt_ctx->intern_keyword("jank/source").expect_ok(), start, end);
-  }
+    read::source source{ start, end };
 
-  obj::persistent_hash_map_ref source_to_meta(object_ref const key,
-                                              read::source_position const &start,
-                                              read::source_position const &end)
-  {
+    auto const module{ runtime::to_code_string(runtime::__rt_ctx->current_ns_var->deref()) };
+    if(runtime::module::is_core_module(module))
+    {
+      source.module = module;
+    }
+
     auto const file{ runtime::__rt_ctx->current_file_var->deref() };
+    source.file = runtime::to_string(file);
 
-    auto const source{ obj::persistent_array_map::empty()->to_transient() };
-    source->assoc_in_place(__rt_ctx->intern_keyword("file").expect_ok(), file);
-
-    auto const start_map{ obj::persistent_array_map::create_unique(
-      __rt_ctx->intern_keyword("offset").expect_ok(),
-      make_box(start.offset),
-      __rt_ctx->intern_keyword("line").expect_ok(),
-      make_box(start.line),
-      __rt_ctx->intern_keyword("col").expect_ok(),
-      make_box(start.col)) };
-    auto const end_map{ obj::persistent_array_map::create_unique(
-      __rt_ctx->intern_keyword("offset").expect_ok(),
-      make_box(end.offset),
-      __rt_ctx->intern_keyword("line").expect_ok(),
-      make_box(end.line),
-      __rt_ctx->intern_keyword("col").expect_ok(),
-      make_box(end.col)) };
-    source->assoc_in_place(__rt_ctx->intern_keyword("start").expect_ok(), start_map);
-    source->assoc_in_place(__rt_ctx->intern_keyword("end").expect_ok(), end_map);
-
-    return obj::persistent_hash_map::create_unique(std::make_pair(key, source->to_persistent()));
+    return source_to_meta(source);
   }
 
   object_ref strip_source_from_meta(object_ref const meta)
@@ -199,11 +225,17 @@ namespace jank::runtime
       return meta;
     }
 
-    auto const stripped{ strip_source_from_meta(meta.unwrap()) };
+    auto stripped{ strip_source_from_meta(meta.unwrap()) };
     if(is_empty(stripped))
     {
       return none;
     }
     return stripped;
+  }
+
+  object_ref with_source_meta(object_ref const o, read::source const &source)
+  {
+    auto const source_meta{ source_to_meta(source) };
+    return with_meta(o, merge(meta(o), source_meta));
   }
 }

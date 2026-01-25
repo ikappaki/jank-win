@@ -10,7 +10,7 @@ namespace jank::ui
   using namespace ftxui;
 
   /* TODO: Also support core fns? */
-  static std::set<jtl::immutable_string_view> const specials{
+  static native_set<jtl::immutable_string_view> const specials{
     "def", "fn*",   "fn",  "let*", "let",   "loop*",   "loop",  "do",
     "if",  "quote", "var", "try",  "catch", "finally", "throw", "letfn*",
   };
@@ -141,7 +141,7 @@ namespace jank::ui
        *
        * This only adds lines if it finds a new line character, though, so the normal
        * case of a single-line token is handled below. */
-      if(code_range.find('\n') != jtl::immutable_string_view::npos)
+      if(code_range.contains('\n'))
       {
         last_offset = token.start.offset;
         fill_in_lines(skip, token.start.offset + token_size, token_color(token));
