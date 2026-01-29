@@ -45,7 +45,6 @@ namespace jank::runtime::module
   /* This turns `foo_bar/spam/meow.cljc` into `foo-bar.spam.meow`. */
   jtl::immutable_string path_to_module(std::filesystem::path const &path)
   {
-    // static std::regex const slash{ "\\\\" };
     static std::regex const slash{ R"([\\/])" };
 
     auto const &s(runtime::demunge(path.string()));

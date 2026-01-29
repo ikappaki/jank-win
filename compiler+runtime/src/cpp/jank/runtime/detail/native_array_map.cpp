@@ -23,27 +23,27 @@ namespace jank::runtime::detail
     {
       case 0:
         {
-          auto const ret(new object_ref[2]{ key, value });
+          auto const ret(JANK_NEW_GC object_ref[2]{ key, value });
           return ret;
         }
       case 2:
         {
-          auto const ret(new object_ref[4]{ prev[0], prev[1], key, value });
+          auto const ret(JANK_NEW_GC object_ref[4]{ prev[0], prev[1], key, value });
           return ret;
         }
       case 4:
         {
-          auto const ret(new object_ref[6]{ prev[0], prev[1], prev[2], prev[3], key, value });
+          auto const ret(JANK_NEW_GC object_ref[6]{ prev[0], prev[1], prev[2], prev[3], key, value });
           return ret;
         }
       case 6:
         {
-          auto const ret(new  object_ref[8]{ prev[0], prev[1], prev[2], prev[3], prev[4], prev[5], key, value });
+          auto const ret(JANK_NEW_GC  object_ref[8]{ prev[0], prev[1], prev[2], prev[3], prev[4], prev[5], key, value });
           return ret;
         }
       case 8:
         {
-          auto const ret(new object_ref[10]{ prev[0],
+          auto const ret(JANK_NEW_GC object_ref[10]{ prev[0],
                                                  prev[1],
                                                  prev[2],
                                                  prev[3],

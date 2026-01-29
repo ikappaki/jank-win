@@ -160,7 +160,7 @@ endif()
 
 if(jank_enable_phase_2)
   set(jank_clojure_core_output "${CMAKE_BINARY_DIR}/core-libs/clojure/core.cpp")
-  set(jank_clojure_core_output_artifact "${CMAKE_BINARY_DIR}/CMakeFiles/jank_exe_phase_2.dir/core-libs/clojure/core.cpp.o")
+  set(jank_clojure_core_output_artifact "${CMAKE_BINARY_DIR}/CMakeFiles/jank_exe_phase_2.dir/core-libs/clojure/core.cpp${CMAKE_CXX_OUTPUT_EXTENSION}")
 else()
   set(jank_clojure_core_output "${CMAKE_BINARY_DIR}/core-libs/clojure/core.o")
   set(jank_clojure_core_output_artifact "${jank_clojure_core_output}")
