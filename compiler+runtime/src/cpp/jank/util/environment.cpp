@@ -168,7 +168,7 @@ namespace jank::util
 
   jtl::immutable_string process_dir()
   {
-    return std::filesystem::path{ process_path().c_str() }.parent_path().string();
+    return std::filesystem::path{ std::string(process_path().c_str()) }.parent_path().string();
   }
 
   jtl::immutable_string resource_dir()
@@ -190,13 +190,13 @@ namespace jank::util
       if(dev_build)
       {
         auto const compiler_runtime{ jank_path / ".." };
-        return compiler_runtime.c_str();
+        return compiler_runtime.string();
       }
 
       auto const configured_path{ (jank_path / dir) };
       if(std::filesystem::exists(configured_path))
       {
-        return configured_path.c_str();
+        return configured_path.string();
       }
 
       /* However, if the configured path doesn't exist, and we're not in a dev build, chances
@@ -210,12 +210,12 @@ namespace jank::util
       if(installed_jank_res)
       {
         std::filesystem::path const installed_jank_path{ *installed_jank_res };
-        return (installed_jank_path.parent_path() / dir).c_str();
+        return (installed_jank_path.parent_path() / dir).string();
       }
 
       /* Otherwise, just return what we can and we'll raise an error down the road when we
        * fail to find things. */
-      return configured_path.c_str();
+      return configured_path.string();
     }
   }
 
@@ -232,7 +232,7 @@ namespace jank::util
       if(sdk_path.empty())
       {
         auto const tmp{ std::filesystem::temp_directory_path() };
-        std::string path_tmp{ tmp / "jank-xcrun-XXXXXX" };
+        std::string path_tmp = ( tmp / "jank-xcrun-XXXXXX" ).string();
         mkstemp(path_tmp.data());
 
         auto const xcrun_path{ llvm::sys::findProgramByName("xcrun") };

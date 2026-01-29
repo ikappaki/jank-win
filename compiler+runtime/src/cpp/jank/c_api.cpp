@@ -1079,7 +1079,7 @@ extern "C"
       }
       if(init_default_ctx)
       {
-        runtime::__rt_ctx = new(GC) runtime::context{};
+        runtime::__rt_ctx = JANK_NEW_GC runtime::context{};
       }
 
       return fn(argc, argv);

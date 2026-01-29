@@ -42,6 +42,7 @@ option(jank_coverage "Enable code coverage measurement" OFF)
 option(jank_analyze "Enable static analysis" OFF)
 option(jank_test "Enable jank's test suite" OFF)
 option(jank_unity_build "Optimize translation unit compilation for the number of cores" OFF)
+option(jank_gc_enable "Enable GC" ON)
 option(jank_debug_gc "Enable GC debug assertions" OFF)
 option(jank_profile_gc "Enable GC profiling (via massif or heaptrack)" OFF)
 option(jank_force_phase_2 "Force the linking of core libs into the jank binary" OFF)
@@ -50,6 +51,10 @@ set(jank_resource_dir
   "../lib/jank/${CMAKE_PROJECT_VERSION}"
   CACHE STRING
   "Where jank's runtime files are installed. Relative paths are based on the runtime jank binary path")
+
+if(WIN32)
+  set(jank_gc_enable OFF CACHE BOOL "Enable GC" FORCE)
+endif()
 
 find_package(Git REQUIRED)
 execute_process(
@@ -106,15 +111,15 @@ set(
   -std=gnu++20
   # https://groups.google.com/g/llvm-dev/c/W-OweiAjDcU?pli=1
   -femulated-tls
-  -DIMMER_HAS_LIBGC=1 -DIMMER_TAGGED_NODE=0 -DHAVE_CXX14=1
+  -DIMMER_TAGGED_NODE=0 -DHAVE_CXX14=1
   -DCPPINTEROP_USE_REPL
   -DFOLLY_HAVE_JEMALLOC=0 -DFOLLY_HAVE_TCMALLOC=0 -DFOLLY_ASSUME_NO_JEMALLOC=1 -DFOLLY_ASSUME_NO_TCMALLOC=1
   #-DLIBASSERT_STATIC_DEFINE=1
   #-stdlib=libc++
 )
 
-if (WIN32)
-  list(APPEND jank_common_compiler_flags -DGC_NOT_DLL)
+if(jank_gc_enable)
+  list(APPEND jank_common_compiler_flags -DIMMER_HAS_LIBGC=1 -DJANK_GC_ENABLE)
 endif()
 
 set(
@@ -685,6 +690,7 @@ set(jank_lib_linker_flags_list "")
 
 if(WIN32)
   list(APPEND jank_lib_linker_flags_list
+    -lpthread
     -lws2_32
     -ldbghelp
   )
@@ -822,6 +828,7 @@ if(WIN32)
     jank_exe_phase_1 PUBLIC
     ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
 
+    pthread
     zstd
     ws2_32
     dbghelp
@@ -871,7 +878,7 @@ if(jank_enable_phase_2)
   #set_target_properties(jank_exe_phase_2 PROPERTIES LINK_FLAGS_RELEASE "-s")
 else()
   add_custom_command(
-    DEPENDS ${CMAKE_BINARY_DIR}/jank-phase-1{CMAKE_EXECUTABLE_SUFFIX} ${jank_clojure_core_output} ${jank_incremental_pch_flag}
+    DEPENDS ${CMAKE_BINARY_DIR}/jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} ${jank_clojure_core_output} ${jank_incremental_pch_flag}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     OUTPUT ${CMAKE_BINARY_DIR}/jank
     COMMAND ${CMAKE_COMMAND} -E create_symlink jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} jank
@@ -946,6 +953,7 @@ if(jank_test)
       jank_test_exe PUBLIC
       ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
 
+      pthread
       zstd
       ws2_32
       dbghelp
@@ -1012,7 +1020,7 @@ add_custom_command(
   DEPENDS ${CMAKE_BINARY_DIR}/jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} ${CMAKE_SOURCE_DIR}/src/jank/clojure/core.jank ${jank_incremental_pch_flag}
   OUTPUT ${jank_core_libraries_flag}
   BYPRODUCTS ${jank_clojure_core_output}
-  COMMAND ${CMAKE_BINARY_DIR}/jank-phase-1{CMAKE_EXECUTABLE_SUFFIX} -O3 compile-module -o ${jank_clojure_core_output} clojure.core
+  COMMAND ${CMAKE_BINARY_DIR}/jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} -O3 compile-module -o ${jank_clojure_core_output} clojure.core
   COMMAND touch ${jank_core_libraries_flag}
 )
 add_custom_target(

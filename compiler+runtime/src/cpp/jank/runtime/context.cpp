@@ -420,7 +420,7 @@ namespace jank::runtime
     }
 
     return util::cli::opts.output_module_filename.empty()
-      ? util::format("{}/{}.{}", binary_cache_dir, module::module_to_path(module_name), ext)
+      ? util::format("{}/{}.{}", binary_cache_dir, module::module_to_path(module_name).c_str(), ext)
       : jtl::immutable_string{ util::cli::opts.output_module_filename };
   }
 
@@ -429,7 +429,7 @@ namespace jank::runtime
                                                  jtl::ref<llvm::Module> const &module) const
   {
     profile::timer const timer{ util::format("write_module {}", module_name) };
-    std::filesystem::path const module_path{ get_output_module_name(module_name) };
+    std::filesystem::path const module_path{ get_output_module_name(module_name).c_str() };
     auto const &module_dir{ module_path.parent_path() };
     if(!module_dir.empty())
     {
@@ -448,13 +448,13 @@ namespace jank::runtime
       case util::cli::compilation_target::llvm_ir:
         {
           std::error_code file_error{};
-          llvm::raw_fd_ostream os(module_path.c_str(),
+          llvm::raw_fd_ostream os(module_path.string(),
                                   file_error,
                                   llvm::sys::fs::OpenFlags::OF_None);
           if(file_error)
           {
             return err(util::format("Failed to open module file '{}' with error '{}'.",
-                                    module_path.c_str(),
+                                    module_path.string(),
                                     file_error.message()));
           }
           module->print(os, nullptr);
@@ -464,13 +464,13 @@ namespace jank::runtime
         {
           /* TODO: Is there a better place for this block of code? */
           std::error_code file_error{};
-          llvm::raw_fd_ostream os(module_path.c_str(),
+          llvm::raw_fd_ostream os(module_path.string(),
                                   file_error,
                                   llvm::sys::fs::OpenFlags::OF_None);
           if(file_error)
           {
             return err(util::format("Failed to open module file '{}' with error '{}'.",
-                                    module_path.c_str(),
+                                    module_path.string(),
                                     file_error.message()));
           }
           //module->print(llvm::outs(), nullptr);

@@ -2,9 +2,9 @@
 
 # jank on MS-Windows
 
-This repository contains **jank** ported to Windows, based on a snapshot taken just before the Clang 21 to Clang 22 transition (Sep 2025), with plans to gradually upgrade to the lasest version.
+This repository contains *jank* ported to Windows. It currently tracks the main repository and includes ongoing work to stay aligned with the latest version.
 
-The only current functional limitation is that exceptions thrown by the C++ backend are not yet supported. An [open ticket](https://github.com/llvm/llvm-project/issues/126365) has been filed in the`llvm-project`.
+The only current functional limitations are that garbage collection is not yet working, and exceptions thrown by the C++ backend are not yet supported. An [open ticket](https://github.com/llvm/llvm-project/issues/126365) has been filed in the`llvm-project`.
 
 ## Compiling Clang/LLVM
 First, [install MSYS2](https://www.msys2.org/). MSYS2 provides a Unix like environment and toolchains for building native Windows software. Each MSYS2 installation is fully isolated when installed in a separate directory.
@@ -45,7 +45,7 @@ git submodule update --init --recursive --jobs 8
 
 Install dependencies:
 ```sh
-pacman -S mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc
+pacman -S mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest
 ```
 You can now follow the official [jank build instructions](compiler+runtime/doc/build.md]).
 

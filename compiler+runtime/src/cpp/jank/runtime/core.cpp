@@ -790,7 +790,7 @@ namespace jank::runtime
     {
       auto const locked_thread{ fut->thread.wlock() };
       auto const thread_handle{ locked_thread->native_handle() };
-      pthread_cancel(thread_handle);
+      pthread_cancel(reinterpret_cast<pthread_t>(thread_handle));
     }
   }
 
@@ -826,7 +826,12 @@ namespace jank::runtime
     {
       auto const locked_thread{ fut->thread.wlock() };
       auto const thread_handle{ locked_thread->native_handle() };
+#ifdef __MINGW64__
+      // TODO: fallback: non-blocking join not available
+      code = pthread_join(reinterpret_cast<pthread_t>(thread_handle), &thread_state);
+#else
       code = pthread_tryjoin_np(thread_handle, &thread_state);
+#endif
     }
 
     switch(code)

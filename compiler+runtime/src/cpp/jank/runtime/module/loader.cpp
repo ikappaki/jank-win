@@ -481,7 +481,7 @@ namespace jank::runtime::module
   }
 
   file_view::file_view(jtl::immutable_string const &file,
-                       file_handle const f,
+                       file_handle f,
                        char const * const h,
                        usize const s)
     : fd{ f }
@@ -517,7 +517,7 @@ namespace jank::runtime::module
     buff = jtl::move(fv.buff);
     file = jtl::move(fv.file);
 
-    fv.fd = -1;
+    fv.fd.reset();
     fv.head = nullptr;
 
     return *this;
@@ -555,7 +555,7 @@ namespace jank::runtime::module
 #endif
       head = nullptr;
     }
-    if(fd >= 0)
+    if(fd.has_value())
     {
 #ifdef _WIN32
       CloseHandle(fd.value().hMapping);
@@ -563,7 +563,7 @@ namespace jank::runtime::module
 #else
       ::close(fd.value());
 #endif
-      fd = -1;
+      fd.reset();
     }
   }
 
@@ -620,14 +620,14 @@ namespace jank::runtime::module
 
     if(hFile == INVALID_HANDLE_VALUE)
     {
-      return err("Unable to open file");
+      return error::runtime_unable_to_open_file(util::format("Unable to open file '{}'.", path));
     }
 
     LARGE_INTEGER fileSize;
     if(!GetFileSizeEx(hFile, &fileSize))
     {
       CloseHandle(hFile);
-      return err("Failed to get file size");
+      return error::internal_runtime_failure("Failed to get file size");
     }
 
     HANDLE hMapping = CreateFileMappingA(hFile, nullptr, PAGE_READONLY, 0, 0, nullptr);
@@ -635,7 +635,7 @@ namespace jank::runtime::module
     if(!hMapping)
     {
       CloseHandle(hFile);
-      return err("Failed to create file mapping");
+      return error::internal_runtime_failure("Failed to create file mapping");
     }
 
     auto head = static_cast<char const *>(MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0));
@@ -643,10 +643,10 @@ namespace jank::runtime::module
     {
       CloseHandle(hMapping);
       CloseHandle(hFile);
-      return err("Failed to map view of file");
+      return error::internal_runtime_failure("Failed to map view of file");
     }
 
-    return ok(file_view{ HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart) });
+    return ok(file_view{ path, HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart) });
 
 #else
     auto const file_size(std::filesystem::file_size(path.c_str()));
@@ -670,6 +670,7 @@ namespace jank::runtime::module
     }
 
     return ok(file_view{ path, fd, head, file_size });
+#endif
   }
 
   jtl::result<file_view, error_ref> loader::read_file(jtl::immutable_string const &path)

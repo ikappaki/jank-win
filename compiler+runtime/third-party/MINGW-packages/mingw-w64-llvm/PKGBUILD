@@ -31,7 +31,7 @@ pkgname=("${MINGW_PACKAGE_PREFIX}-llvm"
          "${MINGW_PACKAGE_PREFIX}-compiler-rt"
          $( (( _clangprefix )) && echo "${MINGW_PACKAGE_PREFIX}-gcc-compat" )
          "${MINGW_PACKAGE_PREFIX}-lld")
-_pkgver=21.0.0
+_pkgver=22.0.0
 pkgver=${_pkgver/-/}
 # jank: do not change the following line, it's pattern matched by the
 # bin/build-clang script
