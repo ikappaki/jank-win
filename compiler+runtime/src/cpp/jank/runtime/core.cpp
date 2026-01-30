@@ -811,11 +811,11 @@ namespace jank::runtime
         break;
     }
 
-#ifdef JANK_MACOS_LIKE
-    /* macOS doesn't have pthread_tryjoin_np, or any similar function, so we can only
+#if defined(JANK_MACOS_LIKE) || defined(_WIN32)
+    /* macOS or MS-Windows doesn't have pthread_tryjoin_np, or any similar function, so we can only
      * pthread_join, to get the cancellation state, which is blocking. So we just have
      * to return false here. That means it's not currently possible to know if a thread
-     * was cancelled on macOS. */
+     * was cancelled on macOS or Windows. */
     return false;
 #else
     void *thread_state{};
@@ -826,12 +826,7 @@ namespace jank::runtime
     {
       auto const locked_thread{ fut->thread.wlock() };
       auto const thread_handle{ locked_thread->native_handle() };
-#ifdef __MINGW64__
-      // TODO: fallback: non-blocking join not available
-      code = pthread_join(reinterpret_cast<pthread_t>(thread_handle), &thread_state);
-#else
       code = pthread_tryjoin_np(thread_handle, &thread_state);
-#endif
     }
 
     switch(code)

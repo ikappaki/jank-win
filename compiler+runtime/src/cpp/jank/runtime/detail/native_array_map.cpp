@@ -33,26 +33,29 @@ namespace jank::runtime::detail
         }
       case 4:
         {
-          auto const ret(JANK_NEW_GC object_ref[6]{ prev[0], prev[1], prev[2], prev[3], key, value });
+          auto const ret(
+            JANK_NEW_GC object_ref[6]{ prev[0], prev[1], prev[2], prev[3], key, value });
           return ret;
         }
       case 6:
         {
-          auto const ret(JANK_NEW_GC  object_ref[8]{ prev[0], prev[1], prev[2], prev[3], prev[4], prev[5], key, value });
+          auto const ret(
+            JANK_NEW_GC
+              object_ref[8]{ prev[0], prev[1], prev[2], prev[3], prev[4], prev[5], key, value });
           return ret;
         }
       case 8:
         {
           auto const ret(JANK_NEW_GC object_ref[10]{ prev[0],
-                                                 prev[1],
-                                                 prev[2],
-                                                 prev[3],
-                                                 prev[4],
-                                                 prev[5],
-                                                 prev[6],
-                                                 prev[7],
-                                                 key,
-                                                 value });
+                                                     prev[1],
+                                                     prev[2],
+                                                     prev[3],
+                                                     prev[4],
+                                                     prev[5],
+                                                     prev[6],
+                                                     prev[7],
+                                                     key,
+                                                     value });
           return ret;
         }
       case 10:

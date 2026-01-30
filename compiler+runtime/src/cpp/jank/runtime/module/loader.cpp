@@ -645,7 +645,8 @@ namespace jank::runtime::module
       return error::internal_runtime_failure("Failed to map view of file");
     }
 
-    return ok(file_view{ path, HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart) });
+    return ok(
+      file_view{ path, HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart) });
 
 #else
     auto const file_size(std::filesystem::file_size(path.c_str()));
