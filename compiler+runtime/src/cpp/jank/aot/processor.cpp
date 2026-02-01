@@ -225,7 +225,7 @@ int main(int argc, const char** argv)
           "-lm",
           "-lstdc++",
 #if defined(__MINGW64__)
-          "-lLLVM-21git",
+          "-lLLVM-22git",
 #else
           "-lLLVM",
 #endif
@@ -251,7 +251,10 @@ int main(int argc, const char** argv)
     {
       compiler_args.push_back(strdup("-Wl,--export-dynamic"));
     }
+#ifdef _WIN32
+#else
     compiler_args.push_back(strdup("-rdynamic"));
+#endif
     compiler_args.push_back(strdup("-O2"));
 
     /* Required because of `strdup` usage and need to manually free the memory.
