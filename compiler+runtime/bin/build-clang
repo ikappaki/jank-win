@@ -81,16 +81,16 @@ function prepare()
 {
   if [[ ! -d "${llvm_src_dir}" ]];
   then
-    git clone --no-checkout "${llvm_url}" "${llvm_src_dir}"
+    git clone --no-checkout --filter=blob:none --depth 1 "${llvm_url}" "${llvm_src_dir}"
     cd "${llvm_src_dir}"
-      git fetch origin "${llvm_branch}" "${llvm_commit}" --depth 1
+      git fetch origin "${llvm_commit}" --depth 1
       git checkout "${llvm_commit}"
       git submodule update --init --depth 1 --recursive
     cd -
   elif [[ ${update} == 1 ]];
   then
     cd ${llvm_src_dir}
-      git stash
+      git stash || true
       git fetch origin "${llvm_commit}" --depth 1
       git checkout "${llvm_commit}"
       git submodule update --init --depth 1 --recursive
