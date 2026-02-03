@@ -190,7 +190,7 @@ namespace jank::util
       auto const configured_path{ (jank_path / dir) };
       if(std::filesystem::exists(configured_path) || dev_build)
       {
-        return configured_path.c_str();
+        return configured_path.string();
       }
 
       /* However, if the configured path doesn't exist, and we're not in a dev build, chances
@@ -204,12 +204,12 @@ namespace jank::util
       if(installed_jank_res)
       {
         std::filesystem::path const installed_jank_path{ *installed_jank_res };
-        return (installed_jank_path.parent_path() / dir).c_str();
+        return (installed_jank_path.parent_path() / dir).string();
       }
 
       /* Otherwise, just return what we can and we'll raise an error down the road when we
        * fail to find things. */
-      return configured_path.c_str();
+      return configured_path.string();
     }
   }
 
@@ -226,7 +226,7 @@ namespace jank::util
       if(sdk_path.empty())
       {
         auto const tmp{ std::filesystem::temp_directory_path() };
-        std::string path_tmp{ tmp / "jank-xcrun-XXXXXX" };
+        std::string path_tmp = ( tmp / "jank-xcrun-XXXXXX" ).string();
         mkstemp(path_tmp.data());
 
         auto const xcrun_path{ llvm::sys::findProgramByName("xcrun") };

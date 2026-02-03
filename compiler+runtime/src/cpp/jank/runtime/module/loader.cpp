@@ -441,7 +441,7 @@ namespace jank::runtime::module
     buff = jtl::move(fv.buff);
     file = jtl::move(fv.file);
 
-    fv.fd = -1;
+    fv.reset();
     fv.head = nullptr;
 
     return *this;
@@ -561,7 +561,7 @@ namespace jank::runtime::module
       return err("Failed to map view of file");
     }
 
-    return ok(file_view{ HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart) });
+    return ok(file_view{ path, HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart) });
 
 #else
     auto const file_size(std::filesystem::file_size(path.c_str()));
