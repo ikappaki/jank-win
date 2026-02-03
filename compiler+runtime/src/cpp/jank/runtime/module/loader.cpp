@@ -11,6 +11,7 @@
 
 #include <libzippp.h>
 
+#include <jank/type.hpp>
 #include <jank/util/fmt/print.hpp>
 #include <jank/util/path.hpp>
 #include <jank/runtime/core.hpp>
@@ -26,7 +27,7 @@
 #include <jank/runtime/obj/persistent_hash_map.hpp>
 #include <jank/runtime/module/loader.hpp>
 #include <jank/runtime/rtti.hpp>
-#include <jank/util/dir.hpp>
+#include <jank/util/environment.hpp>
 #include <jank/profile/time.hpp>
 
 namespace jank::runtime::module
@@ -140,6 +141,17 @@ namespace jank::runtime::module
     }
 
     return ret;
+  }
+
+  static native_set<jtl::immutable_string> const &core_modules()
+  {
+    static native_set<jtl::immutable_string> const modules{ "clojure.core" };
+    return modules;
+  }
+
+  bool is_core_module(jtl::immutable_string const &module)
+  {
+    return core_modules().contains(module);
   }
 
   /* TODO: We can patch libzippp to not copy strings around so much. */
@@ -385,46 +397,54 @@ namespace jank::runtime::module
     : fd{ mf.fd }
     , head{ mf.head }
     , len{ mf.len }
-    , buff{ std::move(mf.buff) }
+    , buff{ jtl::move(mf.buff) }
+    , file{ jtl::move(mf.file) }
   {
     mf.fd.reset();
     mf.head = nullptr;
   }
 
-  file_view::file_view(file_handle const f, char const * const h, usize const s)
+  file_view::file_view(jtl::immutable_string const &file,
+                       file_handle const f,
+                       char const * const h,
+                       usize const s)
     : fd{ f }
     , head{ h }
     , len{ s }
+    , file{ file }
   {
   }
 
-  file_view::file_view(jtl::immutable_string const &buff)
+  file_view::file_view(jtl::immutable_string const &file, jtl::immutable_string const &buff)
     : buff{ buff }
+    , file{ file }
   {
   }
 
   file_view::~file_view()
 
   {
-    if(head != nullptr)
-    /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast): I want const everywhere else. */
+    reset();
+  }
+
+  file_view &file_view::operator=(file_view &&fv) noexcept
+  {
+    if(this == &fv)
     {
-#ifdef _WIN32
-      UnmapViewOfFile(head);
-#else
-      munmap(reinterpret_cast<void *>(const_cast<char *>(head)), len);
-#endif
+      return *this;
     }
-    if(fd.has_value())
-    {
-#ifdef _WIN32
-      CloseHandle(fd.value().hMapping);
-      CloseHandle(fd.value().hFile);
-#else
-      ::close(fd.value());
-#endif
-      fd.reset();
-    }
+
+    reset();
+    fd = fv.fd;
+    head = fv.head;
+    len = fv.len;
+    buff = jtl::move(fv.buff);
+    file = jtl::move(fv.file);
+
+    fv.fd = -1;
+    fv.head = nullptr;
+
+    return *this;
   }
 
   char const *file_view::data() const
@@ -437,9 +457,38 @@ namespace jank::runtime::module
     return buff.empty() ? len : buff.size();
   }
 
+  jtl::immutable_string const &file_view::file_path() const
+  {
+    return file;
+  }
+
   jtl::immutable_string_view file_view::view() const
   {
     return { data(), size() };
+  }
+
+  void file_view::reset()
+  {
+    if(head != nullptr)
+    /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast): I want const everywhere else. */
+    {
+#ifdef _WIN32
+      UnmapViewOfFile(head);
+#else
+      munmap(reinterpret_cast<void *>(const_cast<char *>(head)), len);
+#endif
+      head = nullptr;
+    }
+    if(fd.has_value())
+    {
+#ifdef _WIN32
+      CloseHandle(fd.value().hMapping);
+      CloseHandle(fd.value().hFile);
+#else
+      ::close(fd.value());
+#endif
+      fd.reset();
+    }
   }
 
   static jtl::string_result<file_view> read_jar_file(jtl::immutable_string const &path)
@@ -465,7 +514,7 @@ namespace jank::runtime::module
     }
 
     auto const &zip_entry{ zf.getEntry(std::string{ file_path }) };
-    return ok(file_view{ zip_entry.readAsText() });
+    return ok(file_view{ path, zip_entry.readAsText() });
   }
 
   static jtl::string_result<file_view> map_file(jtl::immutable_string const &path)
@@ -535,17 +584,71 @@ namespace jank::runtime::module
       return err("Mapping failed for unknown reason");
     }
 
-    return ok(file_view{ fd, head, file_size });
+    return ok(file_view{ path, fd, head, file_size });
 #endif
   }
 
   jtl::string_result<file_view> loader::read_file(jtl::immutable_string const &path)
   {
+    if(path == read::no_source_path)
+    {
+      return err("No source file to read.");
+    }
+
     if(path.contains(".jar:"))
     {
       return read_jar_file(path);
     }
     return map_file(path);
+  }
+
+  jtl::string_result<file_view> loader::read_module(jtl::immutable_string const &module)
+  {
+    auto const &found_module{ loader::find(module, origin::source) };
+    if(found_module.is_err())
+    {
+      return err(found_module.expect_err());
+    }
+
+    jtl::option<file_entry> res{};
+
+    auto const module_type_to_load{ found_module.expect_ok().to_load.unwrap() };
+    auto const &module_sources{ found_module.expect_ok().sources };
+
+    switch(module_type_to_load)
+    {
+      case module_type::jank:
+        res = module_sources.jank.unwrap();
+        break;
+      case module_type::o:
+        res = module_sources.o.unwrap();
+        break;
+      case module_type::cpp:
+        res = module_sources.cpp.unwrap();
+        break;
+      case module_type::cljc:
+        res = module_sources.cljc.unwrap();
+        break;
+    }
+
+    if(res.is_none())
+    {
+      return err("TODO");
+    }
+
+    auto const &entry{ res.unwrap() };
+    if(entry.archive_path.is_some())
+    {
+      file_view file;
+      visit_jar_entry(entry, [&](auto const &zip_entry) {
+        file = file_view{ entry.archive_path.unwrap(), zip_entry.readAsText() };
+      });
+      return file;
+    }
+    else
+    {
+      return module::loader::read_file(entry.path);
+    }
   }
 
   jtl::string_result<loader::find_result>

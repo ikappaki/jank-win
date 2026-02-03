@@ -118,6 +118,10 @@ set(
   #-stdlib=libc++ -lc++abi
   )
 
+if (NOT jank_local_clang)
+  list(APPEND jank_linker_flags -L/opt/homebrew/opt/llvm/lib -L/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/opt/llvm/lib/unwind)
+endif ()
+
 if(WIN32)
   list(APPEND jank_linker_flags "-Wl,--export-all-symbols")
 endif()
@@ -384,10 +388,9 @@ add_library(
   src/cpp/jtl/string_builder.cpp
   src/cpp/jank/c_api.cpp
   src/cpp/jank/hash.cpp
-  src/cpp/jank/environment/check_health.cpp
   src/cpp/jank/util/cli.cpp
   src/cpp/jank/util/sha256.cpp
-  src/cpp/jank/util/dir.cpp
+  src/cpp/jank/util/environment.cpp
   src/cpp/jank/util/scope_exit.cpp
   src/cpp/jank/util/escape.cpp
   src/cpp/jank/util/clang_format.cpp
@@ -405,6 +408,7 @@ add_library(
   src/cpp/jank/error/lex.cpp
   src/cpp/jank/error/parse.cpp
   src/cpp/jank/error/analyze.cpp
+  src/cpp/jank/error/runtime.cpp
   src/cpp/jank/error/system.cpp
   src/cpp/jank/error/codegen.cpp
   src/cpp/jank/read/source.cpp
@@ -582,7 +586,9 @@ target_link_libraries(
   bdwgc::gc bdwgc::gctba
 )
 
-if(WIN32)
+if(APPLE)
+  target_link_libraries(jank_lib PUBLIC libzstd_static)
+elseif(WIN32)
   target_link_libraries(jank_lib PRIVATE dbghelp ws2_32)
 endif()
 
@@ -718,6 +724,7 @@ target_link_libraries(
 add_executable(
   jank_exe_phase_1
   src/cpp/main.cpp
+  src/cpp/jank/environment/check_health.cpp
 )
 add_executable(jank::exe ALIAS jank_exe_phase_1)
 
@@ -727,7 +734,11 @@ set_property(TARGET jank_exe_phase_1 PROPERTY OUTPUT_NAME jank-phase-1)
 set_target_properties(jank_exe_phase_1 PROPERTIES ENABLE_EXPORTS 1)
 
 target_compile_features(jank_exe_phase_1 PRIVATE ${jank_cxx_standard})
-target_compile_options(jank_exe_phase_1 PUBLIC ${jank_common_compiler_flags} ${jank_aot_compiler_flags})
+target_compile_options(jank_exe_phase_1
+  PUBLIC
+  ${jank_common_compiler_flags} ${jank_aot_compiler_flags}
+  -DJANK_VERSION="${jank_version}"
+)
 target_include_directories(jank_exe_phase_1 SYSTEM PRIVATE "$<TARGET_PROPERTY:jank_lib,INCLUDE_DIRECTORIES>")
 target_link_directories(jank_exe_phase_1 PRIVATE "$<TARGET_PROPERTY:jank_lib,LINK_DIRECTORIES>")
 target_link_options(jank_exe_phase_1 PRIVATE ${jank_linker_flags} -L ${CMAKE_BINARY_DIR})
@@ -762,7 +773,7 @@ add_dependencies(jank_exe_phase_1 jank_lib_standalone_phase_1)
 if(jank_enable_phase_2)
   add_executable(
     jank_exe_phase_2
-    src/cpp/main.cpp
+    "$<TARGET_PROPERTY:jank_exe_phase_1,SOURCES>"
   )
   add_executable(jank::exe ALIAS jank_exe_phase_2)
 

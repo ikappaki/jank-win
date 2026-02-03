@@ -154,6 +154,8 @@ namespace jank::error
         return "Invalid C++ member function call.";
       case kind::analyze_invalid_cpp_capture:
         return "Invalid C++ capture.";
+      case kind::analyze_mismatched_if_types:
+        return "Mismatched if types.";
       case kind::analyze_invalid_cpp_function_call:
         return "Invalid C++ function call.";
       case kind::analyze_invalid_cpp_call:
@@ -197,11 +199,14 @@ namespace jank::error
 
       case kind::system_clang_executable_not_found:
         return "Unable to find a suitable Clang " JANK_CLANG_MAJOR_VERSION " binary.";
-      case kind::internal_system_failure:
-        return "Internal system failure.";
+      case kind::system_failure:
+        return "System failure.";
 
+      case kind::runtime_invalid_unbox:
+        return "Invalid unbox type.";
       case kind::internal_runtime_failure:
         return "Internal runtime failure.";
+
       case kind::internal_failure:
         return "Internal failure.";
     }
@@ -420,7 +425,7 @@ namespace jank::error
       return lhs.source.start.line < rhs.source.start.line;
     });
     std::ranges::stable_sort(notes, [](note const &lhs, note const &rhs) -> bool {
-      return lhs.source.file_path < rhs.source.file_path;
+      return lhs.source.file < rhs.source.file;
     });
   }
 
