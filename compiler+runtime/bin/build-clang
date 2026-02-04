@@ -91,9 +91,8 @@ function prepare()
   then
     cd ${llvm_src_dir}
       git stash || true
-      git fetch origin "${llvm_commit}" --depth 1
-      git checkout "${llvm_commit}"
-      git submodule update --init --depth 1 --recursive
+      git checkout "${llvm_branch}"
+      git pull origin "${llvm_branch}"
     cd -
   fi
 
