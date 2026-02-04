@@ -55,7 +55,7 @@ srcdir="${PWD}"
 
 llvm_url="https://github.com/jank-lang/llvm-project.git"
 llvm_version=22
-llvm_commit="c8c86efbbb55e51597c1bd8feb2e947bc0de3422"
+llvm_commit="9a0316fc40319f024a8b7ea86029ce913805723e"
 llvm_branch="jank-snapshot/llvm${llvm_version}"
 llvm_branch="jank"
 llvm_dest_dir="${srcdir}/llvm-install"
