@@ -618,14 +618,14 @@ namespace jank::runtime::module
 
     if(hFile == INVALID_HANDLE_VALUE)
     {
-      return err("Unable to open file");
+      return error::runtime_unable_to_open_file(util::format("Unable to open file '{}'.", path));
     }
 
     LARGE_INTEGER fileSize;
     if(!GetFileSizeEx(hFile, &fileSize))
     {
       CloseHandle(hFile);
-      return err("Failed to get file size");
+      return error::internal_runtime_failure("Failed to get file size");
     }
 
     HANDLE hMapping = CreateFileMappingA(hFile, nullptr, PAGE_READONLY, 0, 0, nullptr);
@@ -633,7 +633,7 @@ namespace jank::runtime::module
     if(!hMapping)
     {
       CloseHandle(hFile);
-      return err("Failed to create file mapping");
+      return error::internal_runtime_failure("Failed to create file mapping");
     }
 
     auto head = static_cast<char const *>(MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0));
@@ -641,7 +641,7 @@ namespace jank::runtime::module
     {
       CloseHandle(hMapping);
       CloseHandle(hFile);
-      return err("Failed to map view of file");
+      return error::internal_runtime_failure("Failed to map view of file");
     }
 
     return ok(file_view{ path, HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart) });

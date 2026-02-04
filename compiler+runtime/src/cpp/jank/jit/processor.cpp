@@ -132,7 +132,7 @@ namespace jank::jit
     {
       args.emplace_back("-nostdinc++");
       args.emplace_back("-I");
-      args.emplace_back(strdup((clang_dir / "../include/c++/v1").c_str()));
+      args.emplace_back(strdup((clang_dir / "../include/c++/v1").string().c_str()));
     }
 
     args.emplace_back("-I");
