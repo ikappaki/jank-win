@@ -119,6 +119,8 @@ set(
   )
 
 if (NOT jank_local_clang)
+  # On macOS, we need to link to LLVM's custom libunwind, instead of the system's. Otherwise,
+  # we're unable to catch exceptions thrown across JIT compiled frames.
   list(APPEND jank_linker_flags -L/opt/homebrew/opt/llvm/lib -L/opt/homebrew/opt/llvm/lib/c++ -L/opt/homebrew/opt/llvm/lib/unwind)
 endif ()
 
@@ -231,6 +233,20 @@ list(APPEND jank_common_compiler_flags
   -DJANK_CLANG_RESOURCE_DIR="${clang_resource_dir}"
 )
 
+# Platform-specific filtering of system include paths for JIT flags
+# On macOS, filter out SDK paths that should come from -isysroot at JIT time
+# This prevents baking absolute SDK paths into the binary's JIT flags
+set(clang_jit_include_flags "${clang_system_include_flags}")
+if(APPLE)
+  set(_filtered_jit_flags "")
+  foreach(flag ${clang_system_include_flags})
+    if(NOT flag MATCHES "/SDKs/")
+      list(APPEND _filtered_jit_flags "${flag}")
+    endif()
+  endforeach()
+  set(clang_jit_include_flags "${_filtered_jit_flags}")
+endif()
+
 set(
   jank_jit_compiler_flags
   # We don't actually want to see any warnings for JIT compiled code.
@@ -241,7 +257,7 @@ set(
   -Xclang -fno-validate-pch
   -Xclang -fno-pch-timestamp
   ${LLVM_DEFINITIONS_LIST}
-  ${clang_system_include_flags}
+  ${clang_jit_include_flags}
 )
 # ---- Clang JIT environment ----
 
@@ -279,6 +295,35 @@ target_link_options(nanobench_lib PRIVATE ${jank_linker_flags})
 set_target_properties(nanobench_lib PROPERTIES ENABLE_EXPORTS 1)
 # ---- libnanobench.a ----
 
+# ---- libjankzip.a ----
+
+set(
+  jankzip_sources
+  third-party/zip/src/zip.c
+)
+
+add_library(jankzip_lib STATIC ${jankzip_sources})
+
+# Not our code. Don't try to lint it.
+set_source_files_properties(${jankzip_sources} PROPERTIES SKIP_LINTING ON)
+
+target_include_directories(
+    jankzip_lib
+    SYSTEM
+    PUBLIC
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/zip/src>"
+)
+
+set_property(TARGET jankzip_lib PROPERTY OUTPUT_NAME jankzip)
+
+target_compile_options(jankzip_lib PUBLIC -w)
+
+#set_target_properties(jankzip_lib PROPERTIES LINK_FLAGS_RELEASE "-s")
+
+# Symbol exporting for JIT.
+set_target_properties(jankzip_lib PROPERTIES ENABLE_EXPORTS 1)
+# ---- libjankzip.a ----
+
 # The sources for jank are used for both the compiler and its tests, so
 # they're just pulled into a static library. It's important that this
 # remains a static lib, since these symbols need to be accessible in the
@@ -314,11 +359,11 @@ configure_file(bin/ar-merge ar-merge USE_SOURCE_PERMISSIONS @ONLY)
 set(CMAKE_AR "${CMAKE_BINARY_DIR}/ar-merge${EXT_AR}")
 set(jank_lib_standalone_deps
   jank_lib
-  libzippp::libzippp
   cpptrace::cpptrace
   ftxui::screen ftxui::dom
   Boost::multiprecision
   nanobench_lib
+  jankzip_lib
   bdwgc::gc bdwgc::gctba
   folly_lib
   clangCppInterOp
@@ -371,12 +416,10 @@ set(BUILD_SHARED_LIBS OFF)
 include(FetchContent)
 include(cmake/dependency/bdwgc.cmake)
 include(cmake/dependency/ftxui.cmake)
-include(cmake/dependency/libzippp.cmake)
 include(cmake/dependency/cpptrace.cmake)
 include(cmake/dependency/cppinterop.cmake)
 include(cmake/dependency/boost-multiprecision.cmake)
 
-find_package(LibZip REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 # ---- Other dependencies ----
 
@@ -564,7 +607,7 @@ target_include_directories(
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/immer>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cli11/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/ftxui/include>"
-  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/libzippp/src>"
+  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/zip/src>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cpptrace/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cppinterop/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/cppinterop/lib>"
@@ -572,13 +615,11 @@ target_include_directories(
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/boost-multiprecision/include>"
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third-party/stduuid/include/>"
   ${OPENSSL_INCLUDE_DIR}
-  ${LIBZIP_INCLUDE_DIR}
 )
 
 target_link_libraries(
   jank_lib PRIVATE
   clangCppInterOp
-  libzippp::libzippp
   cpptrace::cpptrace
   ftxui::screen ftxui::dom
   Boost::multiprecision
@@ -630,6 +671,7 @@ foreach(lib ${jank_lib_link_dirs_prop})
   list(APPEND jank_lib_linker_flags_list -L${lib})
 endforeach()
 list(APPEND jank_lib_linker_flags_list ${jank_linker_flags})
+list(APPEND jank_lib_linker_flags_list ${CMAKE_CXX_FLAGS})
 list(JOIN jank_lib_linker_flags_list " " jank_lib_linker_flags_unescaped)
 string(REPLACE "\"" "\\\"" jank_lib_linker_flags_str "${jank_lib_linker_flags_unescaped}")
 
@@ -746,7 +788,7 @@ target_link_options(jank_exe_phase_1 PRIVATE ${jank_linker_flags} -L ${CMAKE_BIN
 target_link_libraries(
   jank_exe_phase_1 PUBLIC
   ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libjank-standalone-phase-1.a ${jank_link_whole_end}
-  libzip::zip z
+  z
   LLVM clang-cpp
   OpenSSL::Crypto
 )
@@ -836,6 +878,8 @@ if(jank_test)
     test/cpp/jank/runtime/obj/persistent_list.cpp
     test/cpp/jank/runtime/obj/persistent_string.cpp
     test/cpp/jank/runtime/obj/persistent_vector.cpp
+    test/cpp/jank/runtime/obj/persistent_array_map.cpp
+    test/cpp/jank/runtime/obj/transient_array_map.cpp
     test/cpp/jank/runtime/obj/range.cpp
     test/cpp/jank/runtime/obj/integer_range.cpp
     test/cpp/jank/runtime/obj/repeat.cpp
@@ -858,7 +902,7 @@ if(jank_test)
   target_link_libraries(
     jank_test_exe PUBLIC
     ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libjank-standalone-phase-1.a ${jank_link_whole_end}
-    libzip::zip z
+    z
     LLVM clang-cpp
     OpenSSL::Crypto
     doctest::doctest
