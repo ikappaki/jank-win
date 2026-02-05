@@ -74,6 +74,7 @@ namespace jank::runtime::module
     return util::format("jank_load_{}", ret);
   }
 
+  /* TODO: I don't think this is needed. */
   jtl::immutable_string
   nest_module(jtl::immutable_string const &module, jtl::immutable_string const &sub)
   {
@@ -897,7 +898,7 @@ namespace jank::runtime::module
     } };
 
     auto const swap_fn_wrapper{ make_box<runtime::obj::native_function_wrapper>(
-      std::function<object_ref(object_ref)>{ swap_fn }) };
+      std::function<object_ref(object_ref const)>{ swap_fn }) };
     loaded_libs_atom->swap(swap_fn_wrapper);
   }
 
@@ -1042,7 +1043,8 @@ namespace jank::runtime::module
     auto const existing_load{ __rt_ctx->jit_prc.find_symbol(load_function_name) };
     if(existing_load.is_ok())
     {
-      reinterpret_cast<object *(*)()>(existing_load.expect_ok())();
+      /* TODO: Update LLVM IR for this. */
+      reinterpret_cast<void (*)()>(existing_load.expect_ok())();
       return ok();
     }
 
@@ -1055,8 +1057,8 @@ namespace jank::runtime::module
       __rt_ctx->jit_prc.load_object(entry.path);
     }
 
-    auto const load{ __rt_ctx->jit_prc.find_symbol(load_function_name).expect_ok() };
-    reinterpret_cast<object *(*)()>(load)();
+    auto const load_fn_res{ __rt_ctx->jit_prc.find_symbol(load_function_name).expect_ok() };
+    reinterpret_cast<object *(*)()>(load_fn_res)();
 
     return ok();
   }
@@ -1106,7 +1108,7 @@ namespace jank::runtime::module
      * What if load function is already loaded/defined? The llvm::Interpreter::Execute will fail. */
     auto const load_function_name{ module_to_load_function(module) };
     auto const load{ __rt_ctx->jit_prc.find_symbol(load_function_name).expect_ok() };
-    reinterpret_cast<object *(*)()>(load)();
+    reinterpret_cast<void (*)()>(load)();
 
     return ok();
   }
