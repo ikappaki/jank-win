@@ -190,7 +190,7 @@ namespace jank::util
       if(dev_build)
       {
         auto const compiler_runtime{ jank_path / ".." };
-        return compiler_runtime.c_str();
+        return compiler_runtime.string();
       }
 
       auto const configured_path{ (jank_path / dir) };
