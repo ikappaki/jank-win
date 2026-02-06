@@ -59,7 +59,7 @@ execute_process(
   ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-set(jank_version "jank-${CMAKE_PROJECT_VERSION}-${jank_git_hash}")
+set(jank_version "jank-${CMAKE_PROJECT_VERSION}-alpha")
 
 set(jank_cxx_standard cxx_std_20)
 
@@ -579,6 +579,7 @@ add_library(
   src/cpp/jank/analyze/expr/cpp_type.cpp
   src/cpp/jank/analyze/expr/cpp_value.cpp
   src/cpp/jank/analyze/expr/cpp_cast.cpp
+  src/cpp/jank/analyze/expr/cpp_unsafe_cast.cpp
   src/cpp/jank/analyze/expr/cpp_call.cpp
   src/cpp/jank/analyze/expr/cpp_constructor_call.cpp
   src/cpp/jank/analyze/expr/cpp_member_call.cpp

@@ -171,7 +171,7 @@ namespace jank::evaluate
       expr_to_add = jtl::make_ref<expr::cpp_cast>(expr->position,
                                                   expr->frame,
                                                   expr->needs_box,
-                                                  cpp_util::untyped_object_ptr_type(),
+                                                  cpp_util::untyped_object_ref_type(),
                                                   expr_type,
                                                   conversion_policy::into_object,
                                                   expr);
@@ -727,6 +727,13 @@ namespace jank::evaluate
     /* TODO: How do we get source info here? Or can we detect this earlier? */
     cpp_util::ensure_convertible(expr).expect_ok();
     return dynamic_call(eval(wrap_expression(expr, "cpp_cast", {})));
+  }
+
+  object_ref eval(expr::cpp_unsafe_cast_ref const expr)
+  {
+    /* TODO: How do we get source info here? Or can we detect this earlier? */
+    cpp_util::ensure_convertible(expr).expect_ok();
+    return dynamic_call(eval(wrap_expression(expr, "cpp_unsafe_cast", {})));
   }
 
   object_ref eval(expr::cpp_call_ref const expr)

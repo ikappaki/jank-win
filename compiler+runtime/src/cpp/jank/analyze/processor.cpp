@@ -50,6 +50,7 @@
 #include <jank/analyze/expr/cpp_type.hpp>
 #include <jank/analyze/expr/cpp_value.hpp>
 #include <jank/analyze/expr/cpp_cast.hpp>
+#include <jank/analyze/expr/cpp_unsafe_cast.hpp>
 #include <jank/analyze/expr/cpp_call.hpp>
 #include <jank/analyze/expr/cpp_constructor_call.hpp>
 #include <jank/analyze/expr/cpp_member_call.hpp>
@@ -565,7 +566,8 @@ namespace jank::analyze
           latest_expansion(macro_expansions));
       }
       if(arg_types.size() == 1 && !Cpp::IsConstructible(val->type, arg_types[0].m_Type)
-         && !cpp_util::is_trait_convertible(val->type))
+         && !cpp_util::is_trait_convertible(val->type)
+         && !cpp_util::is_pointer_to_void_conversion(val->type, arg_types[0].m_Type))
       {
         return error::analyze_invalid_cpp_constructor_call(
           util::format("'{}' cannot be constructed from a '{}'.",
@@ -665,7 +667,6 @@ namespace jank::analyze
         }
       }
 
-
       auto const arity{ arg_count == 1 ? Cpp::kUnary : Cpp::kBinary };
       Cpp::GetOperator(op, arg_types, fns, arity);
 
@@ -675,7 +676,7 @@ namespace jank::analyze
         return error::analyze_invalid_cpp_operator_call(
           util::format("Unable to find '{}' operator support for '{}'.",
                        op_name,
-                       Cpp::GetTypeAsString(obj_type)),
+                       cpp_util::get_qualified_type_name(obj_type)),
           object_source(val->form),
           latest_expansion(macro_expansions));
       }
@@ -1188,27 +1189,28 @@ namespace jank::analyze
     using runtime::obj::symbol;
     for(auto const &p :
         std::initializer_list<std::pair<runtime::obj::symbol_ref, special_function_type>>{
-          {        make_box<symbol>("def"),        &processor::analyze_def },
-          {        make_box<symbol>("fn*"),         &processor::analyze_fn },
-          {      make_box<symbol>("recur"),      &processor::analyze_recur },
-          {         make_box<symbol>("do"),         &processor::analyze_do },
-          {       make_box<symbol>("let*"),        &processor::analyze_let },
-          {     make_box<symbol>("letfn*"),      &processor::analyze_letfn },
-          {      make_box<symbol>("loop*"),       &processor::analyze_loop },
-          {         make_box<symbol>("if"),         &processor::analyze_if },
-          {      make_box<symbol>("quote"),      &processor::analyze_quote },
-          {        make_box<symbol>("var"),   &processor::analyze_var_call },
-          {      make_box<symbol>("throw"),      &processor::analyze_throw },
-          {        make_box<symbol>("try"),        &processor::analyze_try },
-          {      make_box<symbol>("case*"),       &processor::analyze_case },
-          {    make_box<symbol>("cpp/raw"),    &processor::analyze_cpp_raw },
-          {   make_box<symbol>("cpp/type"),   &processor::analyze_cpp_type },
-          {  make_box<symbol>("cpp/value"),  &processor::analyze_cpp_value },
-          {   make_box<symbol>("cpp/cast"),   &processor::analyze_cpp_cast },
-          {    make_box<symbol>("cpp/box"),    &processor::analyze_cpp_box },
-          {  make_box<symbol>("cpp/unbox"),  &processor::analyze_cpp_unbox },
-          {    make_box<symbol>("cpp/new"),    &processor::analyze_cpp_new },
-          { make_box<symbol>("cpp/delete"), &processor::analyze_cpp_delete },
+          {             make_box<symbol>("def"),             &processor::analyze_def },
+          {             make_box<symbol>("fn*"),              &processor::analyze_fn },
+          {           make_box<symbol>("recur"),           &processor::analyze_recur },
+          {              make_box<symbol>("do"),              &processor::analyze_do },
+          {            make_box<symbol>("let*"),             &processor::analyze_let },
+          {          make_box<symbol>("letfn*"),           &processor::analyze_letfn },
+          {           make_box<symbol>("loop*"),            &processor::analyze_loop },
+          {              make_box<symbol>("if"),              &processor::analyze_if },
+          {           make_box<symbol>("quote"),           &processor::analyze_quote },
+          {             make_box<symbol>("var"),        &processor::analyze_var_call },
+          {           make_box<symbol>("throw"),           &processor::analyze_throw },
+          {             make_box<symbol>("try"),             &processor::analyze_try },
+          {           make_box<symbol>("case*"),            &processor::analyze_case },
+          {         make_box<symbol>("cpp/raw"),         &processor::analyze_cpp_raw },
+          {        make_box<symbol>("cpp/type"),        &processor::analyze_cpp_type },
+          {       make_box<symbol>("cpp/value"),       &processor::analyze_cpp_value },
+          {        make_box<symbol>("cpp/cast"),        &processor::analyze_cpp_cast },
+          { make_box<symbol>("cpp/unsafe-cast"), &processor::analyze_cpp_unsafe_cast },
+          {         make_box<symbol>("cpp/box"),         &processor::analyze_cpp_box },
+          {       make_box<symbol>("cpp/unbox"),       &processor::analyze_cpp_unbox },
+          {         make_box<symbol>("cpp/new"),         &processor::analyze_cpp_new },
+          {      make_box<symbol>("cpp/delete"),      &processor::analyze_cpp_delete },
     })
     {
       specials.insert(p);
@@ -1310,7 +1312,7 @@ namespace jank::analyze
         return value_result;
       }
       value_result = apply_implicit_conversion(value_result.expect_ok(),
-                                               cpp_util::untyped_object_ptr_type(),
+                                               cpp_util::untyped_object_ref_type(),
                                                macro_expansions);
       if(value_result.is_err())
       {
@@ -1374,7 +1376,7 @@ namespace jank::analyze
                                          latest_expansion(macro_expansions));
     }
     value_expr = apply_implicit_conversion(value_expr.expect_ok(),
-                                           cpp_util::untyped_object_ptr_type(),
+                                           cpp_util::untyped_object_ref_type(),
                                            macro_expansions);
     if(value_expr.is_err())
     {
@@ -1586,6 +1588,14 @@ namespace jank::analyze
     auto const var(__rt_ctx->find_var(qualified_sym));
     if(var.is_nil())
     {
+      /* We tried to resolve this as a jank symbol, but we didn't find anything.
+       * Now we'll try again as a C++ symbol. We only do this if the ns is empty,
+       * since namespaces from C++ are encoded via '.' not '/'. */
+      if(sym->get_namespace().empty())
+      {
+        return analyze_cpp_symbol(sym, current_frame, position, fc, needs_box);
+      }
+
       return error::analyze_unresolved_symbol(
         util::format("Unable to resolve symbol '{}'.", sym->to_string()),
         meta_source(sym->meta),
@@ -1750,7 +1760,7 @@ namespace jank::analyze
 
       auto const new_last_expression{ apply_implicit_conversion(last_expression,
                                                                 last_expression_type,
-                                                                cpp_util::untyped_object_ptr_type(),
+                                                                cpp_util::untyped_object_ref_type(),
                                                                 macro_expansions) };
       if(new_last_expression.is_err())
       {
@@ -2000,7 +2010,8 @@ namespace jank::analyze
     }
 
 
-    native_vector<expression_ref> arg_exprs;
+    u8 arg_index{};
+    native_vector<expression_ref> arg_exprs, op_equal_exprs;
     arg_exprs.reserve(arg_count);
     for(auto const &form : list->data.rest())
     {
@@ -2009,14 +2020,42 @@ namespace jank::analyze
       {
         return arg_expr;
       }
-      arg_expr = apply_implicit_conversion(arg_expr.expect_ok(),
-                                           cpp_util::untyped_object_ptr_type(),
-                                           macro_expansions);
+
+      jtl::ptr<void> expected_type{ cpp_util::untyped_object_ref_type() };
+      if(is_loop)
+      {
+        expected_type = cpp_util::expression_type(loop_details.unwrap()->pairs[arg_index].second);
+
+        /* Check if op = can be used, since we'll be using it to update the loop values. */
+        auto const op_equal_sym{ make_box<obj::symbol>("cpp", "=") };
+        auto const op_equal_call{ analyze_call(
+          make_box<obj::persistent_list>(std::in_place,
+                                         op_equal_sym,
+                                         loop_details.unwrap()->pairs[arg_index].first,
+                                         form),
+          current_frame,
+          expression_position::statement,
+          fn_ctx,
+          false) };
+        if(op_equal_call.is_err())
+        {
+          /* TODO: Improve error to reference let binding and provide a custom recur message
+           * instead of operator = stuff. */
+
+          /* We add one to account for 'recur'. */
+          return op_equal_call.expect_err()->add_usage(
+            read::parse::reparse_nth(list, arg_index + 1));
+        }
+        op_equal_exprs.emplace_back(op_equal_call.expect_ok());
+      }
+
+      arg_expr = apply_implicit_conversion(arg_expr.expect_ok(), expected_type, macro_expansions);
       if(arg_expr.is_err())
       {
         return arg_expr;
       }
       arg_exprs.emplace_back(arg_expr.expect_ok());
+      ++arg_index;
     }
 
     /* A loop* is only considered a loop if there's actually a recur. Otherwise, it's
@@ -2035,6 +2074,7 @@ namespace jank::analyze
                                       true,
                                       make_box<runtime::obj::persistent_list>(list->data.rest()),
                                       std::move(arg_exprs),
+                                      std::move(op_equal_exprs),
                                       is_loop ? some(loop_details.unwrap()) : none);
   }
 
@@ -2412,7 +2452,7 @@ namespace jank::analyze
     }
     /* TODO: Support native types if they're compatible with bool. */
     condition_expr = apply_implicit_conversion(condition_expr.expect_ok(),
-                                               cpp_util::untyped_object_ptr_type(),
+                                               cpp_util::untyped_object_ref_type(),
                                                macro_expansions);
     if(condition_expr.is_err())
     {
@@ -2464,13 +2504,13 @@ namespace jank::analyze
       if(is_then_convertible)
       {
         then_expr = apply_implicit_conversion(then_expr.expect_ok(),
-                                              cpp_util::untyped_object_ptr_type(),
+                                              cpp_util::untyped_object_ref_type(),
                                               macro_expansions);
       }
       else if(is_else_convertible)
       {
         else_expr = apply_implicit_conversion(else_expr.expect_ok(),
-                                              cpp_util::untyped_object_ptr_type(),
+                                              cpp_util::untyped_object_ref_type(),
                                               macro_expansions);
       }
 
@@ -2588,7 +2628,7 @@ namespace jank::analyze
       return arg_expr.expect_err();
     }
     arg_expr = apply_implicit_conversion(arg_expr.expect_ok(),
-                                         cpp_util::untyped_object_ptr_type(),
+                                         cpp_util::untyped_object_ref_type(),
                                          macro_expansions);
     if(arg_expr.is_err())
     {
@@ -2836,7 +2876,7 @@ namespace jank::analyze
         return res.expect_err();
       }
       res = apply_implicit_conversion(res.expect_ok(),
-                                      cpp_util::untyped_object_ptr_type(),
+                                      cpp_util::untyped_object_ref_type(),
                                       macro_expansions);
       if(res.is_err())
       {
@@ -2887,7 +2927,7 @@ namespace jank::analyze
             return k_expr.expect_err();
           }
           k_expr = apply_implicit_conversion(k_expr.expect_ok(),
-                                             cpp_util::untyped_object_ptr_type(),
+                                             cpp_util::untyped_object_ref_type(),
                                              macro_expansions);
           if(k_expr.is_err())
           {
@@ -2900,7 +2940,7 @@ namespace jank::analyze
             return v_expr.expect_err();
           }
           v_expr = apply_implicit_conversion(v_expr.expect_ok(),
-                                             cpp_util::untyped_object_ptr_type(),
+                                             cpp_util::untyped_object_ref_type(),
                                              macro_expansions);
           if(v_expr.is_err())
           {
@@ -2941,7 +2981,7 @@ namespace jank::analyze
             return res.expect_err();
           }
           res = apply_implicit_conversion(res.expect_ok(),
-                                          cpp_util::untyped_object_ptr_type(),
+                                          cpp_util::untyped_object_ref_type(),
                                           macro_expansions);
           if(res.is_err())
           {
@@ -3011,7 +3051,7 @@ namespace jank::analyze
 
       pop_macro_expansions = push_macro_expansions(*this, o);
 
-      auto sym_result(analyze_symbol(sym, current_frame, expression_position::value, fn_ctx, true));
+      auto sym_result(analyze_symbol(sym, current_frame, expression_position::call, fn_ctx, true));
       if(sym_result.is_err())
       {
         return sym_result;
@@ -3019,7 +3059,7 @@ namespace jank::analyze
 
       source = sym_result.expect_ok();
 
-      if(sym_result.expect_ok()->kind == expression_kind::cpp_type)
+      if(source->kind == expression_kind::cpp_type)
       {
         auto const type{ llvm::cast<expr::cpp_type>(source.data) };
         auto const value{ jtl::make_ref<expr::cpp_value>(
@@ -3032,9 +3072,10 @@ namespace jank::analyze
           expr::cpp_value::value_kind::constructor) };
         return analyze_cpp_call(o, value, current_frame, position, fn_ctx, needs_box);
       }
-      else if((source->kind >= expression_kind::cpp_value_min
-               && source->kind <= expression_kind::cpp_value_max)
-              || !cpp_util::is_any_object(cpp_util::expression_type(source.data)))
+
+      if((source->kind >= expression_kind::cpp_value_min
+          && source->kind <= expression_kind::cpp_value_max)
+         || !cpp_util::is_any_object(cpp_util::expression_type(source.data)))
       {
         return analyze_cpp_call(o, source.data, current_frame, position, fn_ctx, needs_box);
       }
@@ -3110,7 +3151,7 @@ namespace jank::analyze
       pop_macro_expansions = push_macro_expansions(*this, o);
 
       auto const callable_expr(
-        analyze(first, current_frame, expression_position::value, fn_ctx, needs_box));
+        analyze(first, current_frame, expression_position::call, fn_ctx, needs_box));
       if(callable_expr.is_err())
       {
         return callable_expr;
@@ -3130,9 +3171,10 @@ namespace jank::analyze
           expr::cpp_value::value_kind::constructor) };
         return analyze_cpp_call(o, value, current_frame, position, fn_ctx, needs_box);
       }
-      else if((source->kind >= expression_kind::cpp_value_min
-               && source->kind <= expression_kind::cpp_value_max)
-              || !cpp_util::is_any_object(cpp_util::expression_type(source.data)))
+
+      if((source->kind >= expression_kind::cpp_value_min
+          && source->kind <= expression_kind::cpp_value_max)
+         || !cpp_util::is_any_object(cpp_util::expression_type(source.data)))
       {
         return analyze_cpp_call(o, source.data, current_frame, position, fn_ctx, needs_box);
       }
@@ -3151,10 +3193,10 @@ namespace jank::analyze
                             needs_arg_box));
       if(arg_expr.is_err())
       {
-        return arg_expr;
+        return arg_expr.expect_err()->add_usage(read::parse::reparse_nth(o, i + 1));
       }
       arg_expr = apply_implicit_conversion(arg_expr.expect_ok(),
-                                           cpp_util::untyped_object_ptr_type(),
+                                           cpp_util::untyped_object_ref_type(),
                                            macro_expansions);
       if(arg_expr.is_err())
       {
@@ -3219,7 +3261,6 @@ namespace jank::analyze
                   jtl::ptr<void> const scope,
                   bool const is_ctor,
                   u8 const ptr_count,
-                  bool const allow_types,
                   local_frame_ptr const current_frame,
                   expression_position const position,
                   bool const needs_box,
@@ -3280,7 +3321,8 @@ namespace jank::analyze
     }
 
     if(Cpp::IsClass(scope) || Cpp::IsTemplateSpecialization(scope)
-       || (allow_types && Cpp::IsEnumType(type) && !Cpp::IsEnumConstant(scope)))
+       || ((position == expression_position::type || position == expression_position::call)
+           && Cpp::IsEnumType(type) && !Cpp::IsEnumConstant(scope)))
     {
       if(is_ctor)
       {
@@ -3358,7 +3400,7 @@ namespace jank::analyze
                                             vk.unwrap());
     }
 
-    if(allow_types)
+    if(position == expression_position::type || position == expression_position::call)
     {
       return jtl::make_ref<expr::cpp_type>(position, current_frame, needs_box, sym, type);
     }
@@ -3379,7 +3421,6 @@ namespace jank::analyze
                                 bool const needs_box)
   {
     auto const pop_macro_expansions{ push_macro_expansions(*this, sym) };
-    jank_debug_assert(sym->ns == "cpp");
 
     /* TODO: Error if sym ends in . and we're not in a cpp call. */
 
@@ -3429,6 +3470,13 @@ namespace jank::analyze
     auto const op{ cpp_util::match_operator(name) };
     if(op.is_some())
     {
+      if(position != expression_position::call)
+      {
+        return error::analyze_invalid_cpp_position(sym->to_string(),
+                                                   object_source(sym),
+                                                   latest_expansion(macro_expansions));
+      }
+
       return jtl::make_ref<expr::cpp_value>(position,
                                             current_frame,
                                             needs_box,
@@ -3440,6 +3488,13 @@ namespace jank::analyze
 
     if(name.starts_with(".-"))
     {
+      if(position != expression_position::call)
+      {
+        return error::analyze_invalid_cpp_position(sym->to_string(),
+                                                   object_source(sym),
+                                                   latest_expansion(macro_expansions));
+      }
+
       return jtl::make_ref<expr::cpp_value>(position,
                                             current_frame,
                                             needs_box,
@@ -3450,6 +3505,13 @@ namespace jank::analyze
     }
     else if(name.starts_with('.'))
     {
+      if(position != expression_position::call)
+      {
+        return error::analyze_invalid_cpp_position(sym->to_string(),
+                                                   object_source(sym),
+                                                   latest_expansion(macro_expansions));
+      }
+
       return jtl::make_ref<expr::cpp_value>(position,
                                             current_frame,
                                             needs_box,
@@ -3466,6 +3528,12 @@ namespace jank::analyze
       ++ptr_count;
     }
 
+    if(name == "void")
+    {
+      auto const type{ cpp_util::apply_pointers(Cpp::GetVoidType(), ptr_count) };
+      return jtl::make_ref<expr::cpp_type>(position, current_frame, needs_box, sym, type);
+    }
+
     auto const global_type{ cpp_util::resolve_type(name, ptr_count) };
 
     /* Find a primitive type first. Then we know it's a cpp_type expression. */
@@ -3480,6 +3548,12 @@ namespace jank::analyze
                                               global_type,
                                               nullptr,
                                               expr::cpp_value::value_kind::constructor);
+      }
+
+      if(position != expression_position::type && position != expression_position::call)
+      {
+        return error::analyze_invalid_cpp_type_position(object_source(sym),
+                                                        latest_expansion(macro_expansions));
       }
 
       return jtl::make_ref<expr::cpp_type>(position, current_frame, needs_box, sym, global_type);
@@ -3502,9 +3576,10 @@ namespace jank::analyze
       util::scope_exit const finally{ [&] { diag.setClient(old_client.release(), true); } };
 
       /* So just wrap our cpp/foo into a (cpp/value "foo") and analyze that. */
-      runtime::detail::native_persistent_list const cpp_value_form{ make_box<obj::symbol>("cpp",
-                                                                                          "value"),
-                                                                    make_box(name) };
+      runtime::detail::native_persistent_list const cpp_value_form{
+        with_source_meta(make_box<obj::symbol>("cpp", "value"), object_source(sym)),
+        make_box(name)
+      };
       auto const literal_res{ analyze_cpp_value(make_box<obj::persistent_list>(cpp_value_form),
                                                 current_frame,
                                                 position,
@@ -3515,9 +3590,20 @@ namespace jank::analyze
         return literal_res;
       }
 
-      return error::analyze_unresolved_cpp_symbol(util::format("{}", scope_res.expect_err()),
-                                                  object_source(sym),
-                                                  latest_expansion(macro_expansions));
+      /* If the ns doesn't include cpp/, this may not actually be a C++ symbol
+       * the user wanted. We should indicate that it was ambiguous. */
+      if(sym->get_namespace() == "cpp")
+      {
+        return error::analyze_unresolved_symbol(util::format("{}", scope_res.expect_err()),
+                                                object_source(sym),
+                                                latest_expansion(macro_expansions));
+      }
+
+      return error::analyze_unresolved_symbol(
+        util::format("Unable to resolve '{}' as either a jank symbol or C++ symbol.",
+                     sym->to_code_string()),
+        object_source(sym),
+        latest_expansion(macro_expansions));
     }
 
     /* The scope could represent either a type or a value, if it's valid. However, it's
@@ -3529,7 +3615,6 @@ namespace jank::analyze
                            scope,
                            is_ctor,
                            ptr_count,
-                           true,
                            current_frame,
                            position,
                            needs_box,
@@ -3782,6 +3867,13 @@ namespace jank::analyze
 
     if(kind == literal_kind::type)
     {
+      if(position != expression_position::type && position != expression_position::call)
+      {
+        return error::analyze_invalid_cpp_type_position(object_source(l->first()),
+                                                        latest_expansion(macro_expansions))
+          ->add_usage(read::parse::reparse_nth(l, 0));
+      }
+
       u8 ptr_count{};
       while(str.ends_with('*'))
       {
@@ -3808,6 +3900,7 @@ namespace jank::analyze
       }
 
       type = cpp_util::apply_pointers(literal_type.expect_ok(), ptr_count);
+
       return jtl::make_ref<expr::cpp_type>(position,
                                            current_frame,
                                            needs_box,
@@ -3893,15 +3986,18 @@ namespace jank::analyze
     {
       return error::analyze_invalid_cpp_cast("A call to 'cpp/cast' must only have a C++ type and a "
                                              "value as arguments and nothing else.",
-                                             object_source(l->next()->next()->next()->first()),
+                                             object_source(l->next()->first()),
+                                             error::note{
+                                               "This form and all after it are unexpected.",
+                                               object_source(l->next()->next()->next()->first()),
+                                             },
                                              latest_expansion(macro_expansions))
-        ->add_usage(read::parse::reparse_nth(l, 3));
+        ->add_usage(read::parse::reparse_nth(l, 0));
     }
 
     auto const type_obj(l->data.rest().first().unwrap());
-    /* TODO: Add a type expression_position and only allow types there? */
     auto const type_expr_res(
-      analyze(type_obj, current_frame, expression_position::value, fn_ctx, false));
+      analyze(type_obj, current_frame, expression_position::type, fn_ctx, false));
     if(type_expr_res.is_err())
     {
       return type_expr_res.expect_err();
@@ -3930,7 +4026,9 @@ namespace jank::analyze
     {
       return value_expr;
     }
-    else if(Cpp::IsConstructible(type_expr->type, value_type))
+    else if(Cpp::IsConstructible(type_expr->type, value_type)
+            || Cpp::IsImplicitlyConvertible(value_type, type_expr->type)
+            || cpp_util::is_pointer_to_void_conversion(value_type, type_expr->type))
     {
       auto const cpp_value{ jtl::make_ref<expr::cpp_value>(
         position,
@@ -3973,6 +4071,113 @@ namespace jank::analyze
                "and any specializations of 'jank::runtime::convert'.",
                Cpp::GetTypeAsString(value_type),
                Cpp::GetTypeAsString(type_expr->type)),
+             object_source(l->next()->next()->first()),
+             latest_expansion(macro_expansions))
+      ->add_usage(read::parse::reparse_nth(l, 2));
+  }
+
+  processor::expression_result
+  processor::analyze_cpp_unsafe_cast(obj::persistent_list_ref const l,
+                                     local_frame_ptr const current_frame,
+                                     expression_position const position,
+                                     jtl::option<expr::function_context_ref> const &fn_ctx,
+                                     bool const needs_box)
+  {
+    auto const count(l->count());
+    if(count < 2)
+    {
+      return error::analyze_invalid_cpp_unsafe_cast(
+               "This call to 'cpp/unsafe-cast' is missing its C++ type and value arguments.",
+               object_source(l->first()),
+               latest_expansion(macro_expansions))
+        ->add_usage(read::parse::reparse_nth(l, 0));
+    }
+    else if(count < 3)
+    {
+      return error::analyze_invalid_cpp_unsafe_cast(
+               "This call to 'cpp/unsafe-cast' is missing its value argument.",
+               object_source(l->first()),
+               latest_expansion(macro_expansions))
+        ->add_usage(read::parse::reparse_nth(l, 0));
+    }
+    else if(3 < count)
+    {
+      return error::analyze_invalid_cpp_unsafe_cast(
+               "A call to 'cpp/unsafe-cast' must only have a C++ type and a "
+               "value as arguments and nothing else.",
+               object_source(l->next()->first()),
+               /* TODO: Reparse for the note. */
+               error::note{
+                 "This form and all after it are unexpected.",
+                 object_source(l->next()->next()->next()->first()),
+               },
+               latest_expansion(macro_expansions))
+        ->add_usage(read::parse::reparse_nth(l, 0));
+    }
+
+    auto const type_obj(l->data.rest().first().unwrap());
+    auto const type_expr_res(
+      analyze(type_obj, current_frame, expression_position::type, fn_ctx, false));
+    if(type_expr_res.is_err())
+    {
+      return type_expr_res.expect_err();
+    }
+
+    if(type_expr_res.expect_ok()->kind != expression_kind::cpp_type)
+    {
+      return error::analyze_invalid_cpp_unsafe_cast(
+               "The first argument to 'cpp/unafe-cast' must be a C++ type.",
+               object_source(type_obj),
+               latest_expansion(macro_expansions))
+        ->add_usage(read::parse::reparse_nth(l, 1));
+    }
+
+    auto const type_expr{ llvm::cast<expr::cpp_type>(type_expr_res.expect_ok().data) };
+    auto const value_obj(l->data.rest().rest().first().unwrap());
+    auto const value_expr_res(
+      analyze(value_obj, current_frame, expression_position::value, fn_ctx, false));
+    if(value_expr_res.is_err())
+    {
+      return value_expr_res.expect_err();
+    }
+
+    auto const value_expr{ value_expr_res.expect_ok() };
+    auto const value_type{ cpp_util::expression_type(value_expr) };
+    if(Cpp::GetCanonicalType(type_expr->type) == Cpp::GetCanonicalType(value_type))
+    {
+      return value_expr;
+    }
+    /* TODO: Share this with cpp/cast more cleanly? */
+    else if(Cpp::IsConstructible(type_expr->type, value_type))
+    {
+      auto const cpp_value{ jtl::make_ref<expr::cpp_value>(
+        position,
+        current_frame,
+        needs_box,
+        type_expr->sym,
+        type_expr->type,
+        Cpp::GetScopeFromType(type_expr->type),
+        expr::cpp_value::value_kind::constructor) };
+
+      /* Since we're reusing analyze_cpp_call, we need to rebuild our list a bit. We
+       * want to remove the cpp/cast and the type and then add back in a new head. Since
+       * cpp_call takes in a cpp_value, it doesn't look at the head, but it needs to be there. */
+      auto const call_l{ make_box(l->data.rest().rest().conj(jank_nil())) };
+      return analyze_cpp_call(call_l, cpp_value, current_frame, position, fn_ctx, needs_box);
+    }
+    else if(Cpp::IsCStyleConvertible(value_type, type_expr->type))
+    {
+      return jtl::make_ref<expr::cpp_unsafe_cast>(position,
+                                                  current_frame,
+                                                  needs_box,
+                                                  type_expr->type,
+                                                  value_expr);
+    }
+
+    return error::analyze_invalid_cpp_unsafe_cast(
+             util::format("Invalid unsafe-cast from '{}' to '{}'.",
+                          Cpp::GetTypeAsString(value_type),
+                          Cpp::GetTypeAsString(type_expr->type)),
              object_source(l->next()->next()->first()),
              latest_expansion(macro_expansions))
       ->add_usage(read::parse::reparse_nth(l, 2));
@@ -4080,9 +4285,8 @@ namespace jank::analyze
     }
 
     auto const type_obj(l->data.rest().first().unwrap());
-    /* TODO: Add a type expression_position and only allow types there? */
     auto const type_expr_res(
-      analyze(type_obj, current_frame, expression_position::value, fn_ctx, false));
+      analyze(type_obj, current_frame, expression_position::type, fn_ctx, false));
     if(type_expr_res.is_err())
     {
       return type_expr_res.expect_err();
@@ -4157,9 +4361,8 @@ namespace jank::analyze
     }
 
     auto const type_obj(l->data.rest().first().unwrap());
-    /* TODO: Add a type expression_position and only allow types there? */
     auto const type_expr_res(
-      analyze(type_obj, current_frame, expression_position::value, fn_ctx, false));
+      analyze(type_obj, current_frame, expression_position::type, fn_ctx, false));
     if(type_expr_res.is_err())
     {
       return type_expr_res.expect_err();
