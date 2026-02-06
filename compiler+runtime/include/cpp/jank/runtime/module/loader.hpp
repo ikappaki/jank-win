@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <optional>
 
+#include <folly/Synchronized.h>
+
 #include <jtl/result.hpp>
 
 #include <jank/runtime/object.hpp>
@@ -198,10 +200,15 @@ namespace jank::runtime::module
 
     object_ref to_runtime_data() const;
 
-    jtl::immutable_string paths;
-    /* TODO: These will need synchonization. */
-    /* This maps module strings to entries. Module strings are like fully qualified namespace
+    struct mutable_state
+    {
+      jtl::immutable_string paths;
+      /* This maps module strings to entries. Module strings are like fully qualified namespace
      * names. For example, `clojure.core`, `jank.compiler`, etc. */
-    native_unordered_map<jtl::immutable_string, entry> entries;
+      native_unordered_map<jtl::immutable_string, entry> entries;
+    };
+
+    /*** XXX: Everything here is thread-safe. ***/
+    folly::Synchronized<mutable_state> state;
   };
 }
