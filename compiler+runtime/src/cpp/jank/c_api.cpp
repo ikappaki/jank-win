@@ -1059,7 +1059,8 @@ extern "C"
        * issue which leads to a crash in LLVM code.
        *
        * https://github.com/bdwgc/bdwgc/issues/829 */
-      if constexpr(jtl::current_platform == jtl::platform::macos_like)
+      if constexpr(jtl::current_platform == jtl::platform::macos_like
+                   || jtl::current_platform == jtl::platform::windows_like)
       {
         /* Although this is called enable, by calling it right here, we actually disable the GC. */
         GC_enable();

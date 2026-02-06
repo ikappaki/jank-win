@@ -132,8 +132,11 @@ int main(int argc, const char** argv)
     auto const clang_dir{ std::filesystem::path{ clang_path_str.unwrap().c_str() }.parent_path() };
     compiler_args.emplace_back(strdup("-I"));
     compiler_args.emplace_back(strdup((clang_dir / "../include").string().c_str()));
+#ifdef __MINGW64__
+#else
     compiler_args.emplace_back(
       strdup(util::format("-Wl,-rpath,{}", (clang_dir / "../lib").string()).c_str()));
+#endif
 
     std::filesystem::path const jank_path{ util::process_dir().c_str() };
     compiler_args.emplace_back(strdup("-L"));
