@@ -38,11 +38,9 @@ jobs:
             ./bin/build-clang
           popd
       - name: Verify cached Clang
-        shell: msys2 {0}
         env:
           MSYSTEM: CLANG64
-        run: |
-          ls -al compiler+runtime/build/llvm-install
+        run: dir compiler+runtime/build/llvm-install
 
   build:
     needs:
