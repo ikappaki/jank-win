@@ -212,7 +212,10 @@ int main(int argc, const char** argv)
     {
       compiler_args.push_back(strdup("-Wl,--export-dynamic"));
     }
+#ifdef _WIN32
+#else
     compiler_args.push_back(strdup("-rdynamic"));
+#endif
     /* TODO: Change this based on the CLI optimization level. */
     compiler_args.push_back(strdup("-O2"));
 
@@ -276,7 +279,8 @@ int main(int argc, const char** argv)
                             /* Default libraries that jank depends on. */
                             "-lm",
 #if defined(__MINGW64__)
-                            "-lLLVM-22git",
+                            "-lLLVM-22-rc1",
+                            "-lpthread",
 #else
                             "-lLLVM",
 #endif

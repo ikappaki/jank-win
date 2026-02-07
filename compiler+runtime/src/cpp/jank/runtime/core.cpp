@@ -790,7 +790,7 @@ namespace jank::runtime
     {
       auto const locked_thread{ fut->thread.wlock() };
       auto const thread_handle{ locked_thread->native_handle() };
-      pthread_cancel(thread_handle);
+      pthread_cancel(reinterpret_cast<pthread_t>(thread_handle));
     }
   }
 
@@ -811,7 +811,7 @@ namespace jank::runtime
         break;
     }
 
-#ifdef JANK_MACOS_LIKE
+#if defined(JANK_MACOS_LIKE) || defined(_WIN32)
     /* macOS doesn't have pthread_tryjoin_np, or any similar function, so we can only
      * pthread_join, to get the cancellation state, which is blocking. So we just have
      * to return false here. That means it's not currently possible to know if a thread

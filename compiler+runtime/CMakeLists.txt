@@ -823,6 +823,7 @@ if(WIN32)
     jank_exe_phase_1 PUBLIC
     ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
 
+    pthread
     zstd
     ws2_32
     dbghelp
@@ -947,6 +948,7 @@ if(jank_test)
       jank_test_exe PUBLIC
       ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
 
+      pthread
       zstd
       ws2_32
       dbghelp
