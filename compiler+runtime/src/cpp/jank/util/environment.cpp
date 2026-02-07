@@ -232,7 +232,7 @@ namespace jank::util
       if(sdk_path.empty())
       {
         auto const tmp{ std::filesystem::temp_directory_path() };
-        std::string path_tmp = ( tmp / "jank-xcrun-XXXXXX" ).string();
+        std::string path_tmp = (tmp / "jank-xcrun-XXXXXX").string();
         mkstemp(path_tmp.data());
 
         auto const xcrun_path{ llvm::sys::findProgramByName("xcrun") };

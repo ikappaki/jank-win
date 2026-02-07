@@ -144,7 +144,8 @@ int main(int argc, const char** argv)
 
     std::filesystem::path const jank_resource_dir{ util::resource_dir().c_str() };
     compiler_args.emplace_back(strdup("-I"));
-    compiler_args.emplace_back(strdup(util::format("{}/include", jank_resource_dir.string()).c_str()));
+    compiler_args.emplace_back(
+      strdup(util::format("{}/include", jank_resource_dir.string()).c_str()));
     compiler_args.emplace_back(strdup("-L"));
     compiler_args.emplace_back(strdup(util::format("{}/lib", jank_resource_dir.string()).c_str()));
 
@@ -343,13 +344,14 @@ int main(int argc, const char** argv)
     /* TODO: Use runtime::context::get_output_module_name. */
     std::filesystem::path const module_path{
       util::cli::opts.output_module_filename.empty()
-        ? util::format("{}/{}.o", __rt_ctx->binary_cache_dir, module::module_to_path(module_name)).c_str()
+        ? util::format("{}/{}.o", __rt_ctx->binary_cache_dir, module::module_to_path(module_name))
+            .c_str()
         : jtl::immutable_string{ util::cli::opts.output_module_filename }.c_str()
     };
     std::filesystem::create_directories(module_path.parent_path());
 
     auto const tmp{ std::filesystem::temp_directory_path() };
-    std::string path_tmp = ( tmp / "jank-compile-XXXXXX" ).string();
+    std::string path_tmp = (tmp / "jank-compile-XXXXXX").string();
     mkstemp(path_tmp.data());
 
     {

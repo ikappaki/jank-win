@@ -94,7 +94,10 @@ namespace jank::runtime::module
     file_view() = default;
     file_view(file_view const &) = delete;
     file_view(file_view &&) noexcept;
-    file_view(jtl::immutable_string const &file, file_handle f, char const * const h, usize const s);
+    file_view(jtl::immutable_string const &file,
+              file_handle f,
+              char const * const h,
+              usize const s);
     file_view(jtl::immutable_string const &file, jtl::immutable_string const &buff);
     ~file_view();
 
