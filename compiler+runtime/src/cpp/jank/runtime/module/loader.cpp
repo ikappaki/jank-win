@@ -555,13 +555,13 @@ namespace jank::runtime::module
 #endif
       head = nullptr;
     }
-    if(fd.has_value())
+    if(fd)
     {
 #ifdef _WIN32
       CloseHandle(fd.value().hMapping);
       CloseHandle(fd.value().hFile);
 #else
-      ::close(fd.value());
+      ::close(*fd);
 #endif
       fd.reset();
     }
