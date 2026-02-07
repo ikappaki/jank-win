@@ -1,4 +1,3 @@
-#include <iostream>
 #include <filesystem>
 #include <fstream>
 
@@ -12,20 +11,21 @@
 #include <jank/runtime/context.hpp>
 #include <jank/runtime/behavior/callable.hpp>
 #include <jank/runtime/core/to_string.hpp>
+#include <jank/runtime/obj/persistent_hash_map.hpp>
 #include <jank/runtime/obj/persistent_string.hpp>
 #include <jank/runtime/obj/persistent_vector.hpp>
+#include <jank/runtime/obj/persistent_vector_sequence.hpp>
 #include <jank/runtime/detail/type.hpp>
 #include <jank/analyze/processor.hpp>
 #include <jank/c_api.h>
-#include <jank/evaluate.hpp>
 #include <jank/jit/processor.hpp>
 #include <jank/aot/processor.hpp>
 #include <jank/profile/time.hpp>
-#include <jank/error/report.hpp>
 #include <jank/util/scope_exit.hpp>
 #include <jank/util/string.hpp>
 #include <jank/util/fmt/print.hpp>
 #include <jank/util/try.hpp>
+#include <jank/error/report.hpp>
 #include <jank/environment/check_health.hpp>
 #include <jank/runtime/convert/builtin.hpp>
 
@@ -35,7 +35,7 @@
 #include <clojure/string_native.hpp>
 
 #ifdef JANK_PHASE_2
-extern "C" jank_object_ref jank_load_clojure_core();
+extern "C" void jank_load_clojure_core();
 #endif
 
 namespace jank
@@ -47,15 +47,17 @@ namespace jank
     using namespace jank;
     using namespace jank::runtime;
 
+
+#ifndef JANK_PHASE_2
     {
       profile::timer const timer{ "load clojure.core" };
       __rt_ctx->load_module("/clojure.core", module::origin::latest).expect_ok();
     }
+#endif
 
     {
       profile::timer const timer{ "eval user code" };
-      std::cout << runtime::to_code_string(__rt_ctx->eval_file(util::cli::opts.target_file))
-                << "\n";
+      __rt_ctx->eval_file(util::cli::opts.target_file);
     }
 
     //ankerl::nanobench::Config config;
@@ -80,10 +82,12 @@ namespace jank
     using namespace jank;
     using namespace jank::runtime;
 
+#ifndef JANK_PHASE_2
     {
       profile::timer const timer{ "require clojure.core" };
       __rt_ctx->load_module("/clojure.core", module::origin::latest).expect_ok();
     }
+#endif
 
     {
       profile::timer const timer{ "eval user code" };
@@ -114,10 +118,71 @@ namespace jank
     using namespace jank;
     using namespace jank::runtime;
 
+    if(opts.output_target == util::cli::compilation_target::unspecified)
+    {
+      if(opts.output_module_filename.empty())
+      {
+        opts.output_target = util::cli::compilation_target::object;
+      }
+      else
+      {
+        auto const ext{ std::filesystem::path{ opts.output_module_filename.c_str() }.extension() };
+        if(ext == ".ll")
+        {
+          opts.output_target = util::cli::compilation_target::llvm_ir;
+        }
+        else if(ext == ".cpp")
+        {
+          opts.output_target = util::cli::compilation_target::cpp;
+        }
+        else if(ext == ".o")
+        {
+          opts.output_target = util::cli::compilation_target::object;
+        }
+        else
+        {
+          /* TODO: Dedicated error. */
+          throw error::internal_failure(
+            util::format("Unable to determine the output target type, given output file name '{}'. "
+                         "If you provide a '.ll', '.cpp', or '.o' extension, this can be inferred. "
+                         "Otherwise, please provide the --output-type flag to specify.",
+                         opts.output_module_filename));
+        }
+      }
+    }
+    else if(!opts.output_module_filename.empty())
+    {
+      auto const ext{ std::filesystem::path{ opts.output_module_filename.c_str() }.extension() };
+      if((ext == ".ll" && opts.output_target != util::cli::compilation_target::llvm_ir)
+         || (ext == ".cpp" && opts.output_target != util::cli::compilation_target::cpp)
+         || (ext == ".o" && opts.output_target != util::cli::compilation_target::object))
+      {
+        error::warn(util::format("The output file name '{}' has the extension '{}', but the output "
+                                 "target is '{}'. These appear to be mismatched.",
+                                 opts.output_module_filename,
+                                 ext.string(),
+                                 util::cli::compilation_target_str(opts.output_target)));
+      }
+    }
+
+    if(opts.output_target == util::cli::compilation_target::cpp
+       && opts.codegen != util::cli::codegen_type::cpp)
+    {
+      /* TODO: Dedicated error. */
+      throw error::internal_failure(
+        util::format("Unable to output C++ when the codegen flag is set to '{}'. Please either "
+                     "output a different target or change the codegen to C++.",
+                     util::cli::codegen_type_str(opts.codegen)));
+    }
+
+
+#ifndef JANK_PHASE_2
     if(opts.target_module != "clojure.core")
     {
       __rt_ctx->load_module("/clojure.core", module::origin::latest).expect_ok();
     }
+#endif
+
     __rt_ctx->compile_module(opts.target_module).expect_ok();
   }
 
@@ -132,10 +197,13 @@ namespace jank
       throw std::runtime_error{ "Not yet implemented: REPL server" };
     }
 
+
+#ifndef JANK_PHASE_2
     {
       profile::timer const timer{ "require clojure.core" };
       __rt_ctx->load_module("/clojure.core", module::origin::latest).expect_ok();
     }
+#endif
 
     dynamic_call(__rt_ctx->in_ns_var->deref(), make_box<obj::symbol>("user"));
     dynamic_call(__rt_ctx->intern_var("clojure.core", "refer").expect_ok(),
@@ -166,6 +234,17 @@ namespace jank
     int const fd = mkstemp(path_tmp.data());
     close(fd);
 
+    auto const first_res_var{ __rt_ctx->find_var("clojure.core", "*1") };
+    auto const second_res_var{ __rt_ctx->find_var("clojure.core", "*2") };
+    auto const third_res_var{ __rt_ctx->find_var("clojure.core", "*3") };
+    auto const error_var{ __rt_ctx->find_var("clojure.core", "*e") };
+
+    context::binding_scope const scope{ obj::persistent_hash_map::create_unique(
+      std::make_pair(first_res_var, jank_nil()),
+      std::make_pair(second_res_var, jank_nil()),
+      std::make_pair(third_res_var, jank_nil()),
+      std::make_pair(error_var, jank_nil())) };
+
     /* TODO: Completion. */
     /* TODO: Syntax highlighting. */
     while(auto buf = le.readLine())
@@ -175,7 +254,7 @@ namespace jank
 
       if(line.empty())
       {
-        std::cout << "\n";
+        util::println("");
         continue;
       }
 
@@ -198,12 +277,20 @@ namespace jank
         }
 
         auto const res(__rt_ctx->eval_file(path_tmp));
-        util::println("{}", runtime::to_code_string(res));
+
+        if(res.is_some())
+        {
+          third_res_var->set(second_res_var->deref()).expect_ok();
+          second_res_var->set(first_res_var->deref()).expect_ok();
+          first_res_var->set(res.unwrap()).expect_ok();
+
+          util::println("{}", runtime::to_code_string(res.unwrap()));
+        }
       }
       JANK_CATCH(jank::util::print_exception)
 
       input.clear();
-      std::cout << "\n";
+      util::println("");
       le.setPrompt(get_prompt("=> "));
     }
   }
@@ -213,10 +300,12 @@ namespace jank
     using namespace jank;
     using namespace jank::runtime;
 
+#ifndef JANK_PHASE_2
     {
       profile::timer const timer{ "require clojure.core" };
       __rt_ctx->load_module("/clojure.core", module::origin::latest).expect_ok();
     }
+#endif
 
     if(!opts.target_module.empty())
     {
@@ -264,14 +353,18 @@ namespace jank
     using namespace jank;
     using namespace jank::runtime;
 
+
+#ifndef JANK_PHASE_2
     if(opts.target_module != "clojure.core")
     {
       __rt_ctx->compile_module("clojure.core").expect_ok();
     }
+#endif
+
     __rt_ctx->compile_module(opts.target_module).expect_ok();
 
     jank::aot::processor const aot_prc{};
-    aot_prc.compile(opts.target_module).expect_ok();
+    aot_prc.build_executable(opts.target_module).expect_ok();
   }
 }
 
@@ -285,7 +378,7 @@ int main(int const argc, char const **argv)
   using namespace jank::runtime;
 
   return jank_init(argc, argv, /*init_default_ctx=*/false, [](int const argc, char const **argv) {
-    auto const parse_result(util::cli::parse(argc, argv));
+    auto const parse_result(util::cli::parse_opts(argc, argv));
     if(parse_result.is_err())
     {
       return parse_result.expect_err();
@@ -312,10 +405,20 @@ int main(int const argc, char const **argv)
 
 #ifdef JANK_PHASE_2
     jank_load_clojure_core();
-    __rt_ctx->module_loader.set_is_loaded("/clojure.core");
 #endif
 
     Cpp::EnableDebugOutput(false);
+
+    {
+      runtime::detail::native_transient_vector extra_args;
+      for(auto const &s : opts.extra_opts)
+      {
+        extra_args.push_back(make_box<runtime::obj::persistent_string>(s));
+      }
+      __rt_ctx->intern_var("clojure.core", "*command-line-args*")
+        .expect_ok()
+        ->bind_root(make_box<obj::persistent_vector>(extra_args.persistent())->seq());
+    }
 
     switch(jank::util::cli::opts.command)
     {

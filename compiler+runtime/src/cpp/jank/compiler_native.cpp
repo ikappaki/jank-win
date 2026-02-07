@@ -46,16 +46,21 @@ namespace jank::compiler_native
       util::println("{}\n", util::format_cpp_source(cg_prc.declaration_str()).expect_ok());
     }
 
-    return jank_nil;
+    return jank_nil();
   }
 }
 
-extern "C" jank_object_ref jank_load_jank_compiler_native()
+extern "C" void jank_load_jank_compiler_native()
 {
   using namespace jank;
   using namespace jank::runtime;
 
-  auto const ns(__rt_ctx->intern_ns("jank.compiler-native"));
+  auto const ns_name{ "jank.compiler-native" };
+  auto const ns(__rt_ctx->intern_ns(ns_name));
+
+  /* Will not be required, once we implement this module in jank with
+   * cpp interop. */
+  __rt_ctx->module_loader.set_is_loaded(ns_name);
 
   auto const intern_fn([=](jtl::immutable_string const &name, auto const fn) {
     ns->intern_var(name)->bind_root(
@@ -65,6 +70,4 @@ extern "C" jank_object_ref jank_load_jank_compiler_native()
           make_box(obj::symbol{ __rt_ctx->current_ns()->to_string(), name }.to_string())))));
   });
   intern_fn("native-source", &compiler_native::native_source);
-
-  return jank_nil.erase();
 }

@@ -55,8 +55,9 @@ srcdir="${PWD}"
 
 llvm_url="https://github.com/jank-lang/llvm-project.git"
 llvm_version=22
-llvm_commit="e115b0218839b0dd261331d7dda5faff5f4403a2"
 llvm_branch="jank-snapshot/llvm${llvm_version}"
+# 8164f1a0c17b192e133817436bdb07598b7402a3
+llvm_commit="8164f1a0c17b192e133817436bdb07598b7402a3"
 llvm_branch="jank"
 llvm_dest_dir="${srcdir}/llvm-install"
 llvm_build_dir="${srcdir}/llvm-build"
@@ -91,9 +92,8 @@ function prepare()
   then
     cd ${llvm_src_dir}
       git stash || true
-      git fetch origin "${llvm_commit}" --depth 1
-      git checkout "${llvm_commit}"
-      git submodule update --init --depth 1 --recursive
+      git checkout "${llvm_branch}"
+      git pull origin "${llvm_branch}"
     cd -
   fi
 

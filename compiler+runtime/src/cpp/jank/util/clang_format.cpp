@@ -4,7 +4,7 @@
 #include <clang/Format/Format.h>
 
 #include <jank/util/clang_format.hpp>
-#include <jank/util/dir.hpp>
+#include <jank/util/environment.hpp>
 #include <jank/util/fmt.hpp>
 
 namespace jank::util
@@ -68,6 +68,7 @@ namespace jank::util
     {
       return err(llvm::toString(formatted_code.takeError()));
     }
-    return ok(jtl::immutable_string{ *formatted_code });
+    jtl::immutable_string const ret{ *formatted_code };
+    return ok(ret);
   }
 }

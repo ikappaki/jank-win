@@ -4,7 +4,6 @@
 
 namespace jank::runtime
 {
-
   native_big_decimal operator+(native_big_decimal const &l, native_big_integer const &r)
   {
     return l + native_big_decimal(r.str());
@@ -121,6 +120,16 @@ namespace jank::runtime::obj
 
   big_decimal::big_decimal(jtl::immutable_string const &val)
     : data{ val.c_str() }
+  {
+  }
+
+  big_decimal::big_decimal(native_big_integer const &val)
+    : data{ val.real() }
+  {
+  }
+
+  big_decimal::big_decimal(ratio const &val)
+    : data(native_big_decimal(val.data.numerator) / val.data.denominator)
   {
   }
 

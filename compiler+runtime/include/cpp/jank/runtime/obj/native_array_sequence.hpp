@@ -7,7 +7,7 @@ namespace jank::runtime::obj
   using native_array_sequence_ref = oref<struct native_array_sequence>;
   using cons_ref = oref<struct cons>;
 
-  struct native_array_sequence : gc
+  struct native_array_sequence
   {
     static constexpr object_type obj_type{ object_type::native_array_sequence };
     static constexpr bool pointer_free{ false };
@@ -20,7 +20,7 @@ namespace jank::runtime::obj
     native_array_sequence(object_ref * const arr, usize const index, usize const size);
 
     template <typename... Args>
-    native_array_sequence(object_ref const first, Args const... rest)
+    native_array_sequence(object_ref const first, Args const &...rest)
       : arr{ make_array_box<object_ref>(first, rest...) }
       , size{ sizeof...(Args) + 1 }
     {
@@ -43,11 +43,12 @@ namespace jank::runtime::obj
     /* behavior::sequence */
     object_ref first() const;
     native_array_sequence_ref next() const;
-    obj::cons_ref conj(object_ref head);
+    obj::cons_ref conj(object_ref const head);
 
     /* behavior::sequenceable_in_place */
     native_array_sequence_ref next_in_place();
 
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
     jtl::ptr<object_ref> arr{};
     usize index{};

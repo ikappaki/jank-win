@@ -20,7 +20,6 @@
 #include <jank/analyze/visit.hpp>
 #include <jank/analyze/cpp_util.hpp>
 #include <jank/error/analyze.hpp>
-#include <jank/error/codegen.hpp>
 
 namespace jank::evaluate
 {
@@ -130,12 +129,7 @@ namespace jank::evaluate
   }
 
   /* Some expressions don't make sense to eval outright and aren't fns that can be JIT compiled.
-   * For those, we wrap them in a fn expression and then JIT compile and call them.
-   *
-   * There's an oddity here, since that expr wouldn't've been analyzed within a fn frame, so
-   * its lifted vars/constants, for example, aren't in a fn frame. Instead, they're put in the
-   * root frame. So, when wrapping this expr, we give the fn the root frame, but change its
-   * type to a fn frame. */
+   * For those, we wrap them in a fn expression and then JIT compile and call them. */
   template <typename E>
   static expr::function_ref wrap_expression(jtl::ref<E> const orig_expr,
                                             jtl::immutable_string const &name,
@@ -148,8 +142,6 @@ namespace jank::evaluate
     ret->unique_name = __rt_ctx->unique_namespaced_string(ret->name);
     ret->meta = obj::persistent_hash_map::empty();
 
-    auto const &closest_fn_frame(local_frame::find_closest_fn_frame(*expr->frame));
-
     auto const frame{ jtl::make_ref<local_frame>(local_frame::frame_type::fn,
                                                  expr->frame->parent) };
     auto const fn_ctx{ jtl::make_ref<expr::function_context>() };
@@ -159,20 +151,16 @@ namespace jank::evaluate
                                 fn_ctx };
     expr->frame->parent = arity.frame;
     ret->frame = arity.frame->parent.unwrap_or(arity.frame);
-    ret->frame->lift_constant(ret->meta);
     fn_ctx->name = ret->name;
     fn_ctx->unique_name = ret->unique_name;
     fn_ctx->fn = ret;
     arity.frame->fn_ctx = fn_ctx;
     arity.fn_ctx = fn_ctx;
 
-    arity.frame->lifted_vars = closest_fn_frame.lifted_vars;
-    arity.frame->lifted_constants = closest_fn_frame.lifted_constants;
-
     arity.fn_ctx->param_count = arity.params.size();
-    for(auto const sym : arity.params)
+    for(auto const &sym : arity.params)
     {
-      arity.frame->locals.emplace(sym, local_binding{ sym, sym->name, none, arity.frame });
+      arity.frame->locals[sym].emplace_back(sym, sym->name, none, arity.frame);
     }
 
     auto const expr_type{ cpp_util::expression_type(expr) };
@@ -183,7 +171,7 @@ namespace jank::evaluate
       expr_to_add = jtl::make_ref<expr::cpp_cast>(expr->position,
                                                   expr->frame,
                                                   expr->needs_box,
-                                                  cpp_util::untyped_object_ptr_type(),
+                                                  cpp_util::untyped_object_ref_type(),
                                                   expr_type,
                                                   conversion_policy::into_object,
                                                   expr);
@@ -199,7 +187,9 @@ namespace jank::evaluate
         auto found_local(expr->frame->find_local_or_capture(form.name));
         if(found_local && !found_local.unwrap().crossed_fns.empty())
         {
-          arity.frame->captures[form.name] = *found_local.unwrap().binding;
+          arity.frame->captures.emplace(
+            form.name,
+            local_capture{ *found_local.unwrap().binding, found_local.unwrap().binding });
         }
       }
     });
@@ -226,7 +216,7 @@ namespace jank::evaluate
       return wrap_expression(jtl::make_ref<expr::primitive_literal>(expression_position::tail,
                                                                     an_prc.root_frame,
                                                                     true,
-                                                                    jank_nil),
+                                                                    jank_nil()),
                              name,
                              {});
     }
@@ -267,18 +257,25 @@ namespace jank::evaluate
 
   object_ref eval(expression_ref const ex)
   {
-    profile::timer const timer{ "eval ast node" };
+    profile::timer const timer{ util::format("eval ast node {}",
+                                             analyze::expression_kind_str(ex->kind)) };
     object_ref ret{};
     visit_expr([&ret](auto const typed_ex) { ret = eval(typed_ex); }, ex);
     return ret;
   }
+
+  /* If we're directly evaluating the value for a def, this will be set to the var the
+   * def has interned. This is used when creating deferred functions, since they need
+   * to know the var which owns the function they're proxying. */
+  /* NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables) */
+  thread_local var_ref current_def_var;
 
   object_ref eval(expr::def_ref const expr)
   {
     auto var(__rt_ctx->intern_var(expr->name).expect_ok());
     var->meta = expr->name->meta;
 
-    auto const meta(var->meta.unwrap_or(jank_nil));
+    auto const meta(var->meta.unwrap_or(jank_nil()));
     auto const dynamic(get(meta, __rt_ctx->intern_keyword("dynamic").expect_ok()));
     var->set_dynamic(truthy(dynamic));
 
@@ -287,8 +284,19 @@ namespace jank::evaluate
       return var;
     }
 
-    auto const evaluated_value(eval(expr->value.unwrap()));
-    var->bind_root(evaluated_value);
+    auto const value{ expr->value.unwrap() };
+    if(value->kind == analyze::expression_kind::function)
+    {
+      current_def_var = var;
+      auto const evaluated_value(eval(value));
+      var->bind_root(evaluated_value);
+      current_def_var = jank_nil();
+    }
+    else
+    {
+      auto const evaluated_value(eval(value));
+      var->bind_root(evaluated_value);
+    }
 
     return var;
   }
@@ -580,6 +588,12 @@ namespace jank::evaluate
 
   object_ref eval(expr::function_ref const expr)
   {
+    return eval(expr, "");
+  }
+
+  object_ref eval(expr::function_ref const expr, jtl::immutable_string const &)
+  {
+    profile::timer const timer{ util::format("eval jit function {}", expr->name) };
     auto const &module(
       module::nest_module(expect_object<ns>(__rt_ctx->current_ns_var->deref())->to_string(),
                           munge(expr->unique_name)));
@@ -605,20 +619,34 @@ namespace jank::evaluate
     else
     {
       codegen::processor cg_prc{ expr, module, codegen::compilation_target::eval };
-      util::println("{}\n", util::format_cpp_source(cg_prc.declaration_str()).expect_ok());
-      __rt_ctx->jit_prc.eval_string(cg_prc.declaration_str());
-      auto const expr_str{ cg_prc.expression_str(true) + ".erase()" };
-      clang::Value v;
-      auto res(
-        __rt_ctx->jit_prc.interpreter->ParseAndExecute({ expr_str.data(), expr_str.size() }, &v));
-      if(res)
+
+      /* TODO: Rename to something generic which makes sense for IR and C++ gen? */
+      jtl::immutable_string_view const print_settings{ getenv("JANK_PRINT_IR") ?: "" };
+      if(print_settings == "1")
       {
-        /* TODO: Helper to turn an llvm::Error into a string. */
-        jtl::immutable_string const msg{ "Unable to compile/eval C++ source." };
-        llvm::logAllUnhandledErrors(jtl::move(res), llvm::errs(), "error: ");
-        throw error::internal_codegen_failure(msg);
+        util::println("{}\n", util::format_cpp_source(cg_prc.declaration_str()).expect_ok());
       }
-      return try_object<obj::jit_function>(v.convertTo<runtime::object *>());
+
+      if(current_def_var.is_some()
+         && util::cli::opts.eagerness == util::cli::compilation_eagerness::lazy)
+      {
+        auto const ret{ make_box<obj::deferred_cpp_function>(expr->meta,
+                                                             cg_prc.declaration_str(),
+                                                             cg_prc.expression_str()
+                                                               + ".erase().data",
+                                                             current_def_var) };
+        current_def_var = jank_nil();
+        return ret;
+      }
+      else
+      {
+        __rt_ctx->jit_prc.eval_string(cg_prc.declaration_str());
+        auto const expr_str{ cg_prc.expression_str() + ".erase().data" };
+        clang::Value v;
+        __rt_ctx->jit_prc.eval_string({ expr_str.data(), expr_str.size() }, &v);
+        auto const ret{ try_object<obj::jit_function>(v.convertTo<runtime::object *>()) };
+        return ret;
+      }
     }
   }
 
@@ -642,7 +670,7 @@ namespace jank::evaluate
 
   object_ref eval(expr::do_ref const expr)
   {
-    object_ref ret{ jank_nil };
+    object_ref ret{ jank_nil() };
     for(auto const &form : expr->values)
     {
       ret = eval(form);
@@ -671,7 +699,7 @@ namespace jank::evaluate
     {
       return eval(expr->else_.unwrap());
     }
-    return jank_nil;
+    return jank_nil();
   }
 
   object_ref eval(expr::throw_ref const expr)
@@ -716,7 +744,8 @@ namespace jank::evaluate
 
   object_ref eval(expr::cpp_raw_ref const expr)
   {
-    return dynamic_call(eval(wrap_expression(expr, "cpp_raw", {})));
+    __rt_ctx->jit_prc.eval_string(expr->code);
+    return runtime::jank_nil();
   }
 
   object_ref eval(expr::cpp_type_ref const)
@@ -736,6 +765,13 @@ namespace jank::evaluate
     /* TODO: How do we get source info here? Or can we detect this earlier? */
     cpp_util::ensure_convertible(expr).expect_ok();
     return dynamic_call(eval(wrap_expression(expr, "cpp_cast", {})));
+  }
+
+  object_ref eval(expr::cpp_unsafe_cast_ref const expr)
+  {
+    /* TODO: How do we get source info here? Or can we detect this earlier? */
+    cpp_util::ensure_convertible(expr).expect_ok();
+    return dynamic_call(eval(wrap_expression(expr, "cpp_unsafe_cast", {})));
   }
 
   object_ref eval(expr::cpp_call_ref const expr)

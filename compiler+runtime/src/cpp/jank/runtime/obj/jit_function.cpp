@@ -35,11 +35,11 @@ namespace jank::runtime::obj
 
   void jit_function::to_string(jtl::string_builder &buff)
   {
-    auto const name(get(meta.unwrap_or(jank_nil), __rt_ctx->intern_keyword("name").expect_ok()));
+    auto const name(get(meta.unwrap_or(jank_nil()), __rt_ctx->intern_keyword("name").expect_ok()));
     util::format_to(
       buff,
       "#object [{} {} {}]",
-      (name->type == object_type::nil ? "unknown" : expect_object<persistent_string>(name)->data),
+      (name->type == object_type::nil ? "unknown" : try_object<persistent_string>(name)->data),
       object_type_str(base.type),
       &base);
   }
@@ -57,8 +57,9 @@ namespace jank::runtime::obj
   jit_function_ref jit_function::with_meta(object_ref const m)
   {
     auto const new_meta(behavior::detail::validate_meta(m));
-    meta = new_meta;
-    return this;
+    auto const ret{ make_box<jit_function>(*this) };
+    ret->meta = new_meta;
+    return ret;
   }
 
   object_ref jit_function::call()

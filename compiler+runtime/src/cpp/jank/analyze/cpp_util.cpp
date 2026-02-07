@@ -11,6 +11,7 @@
 #include <jank/util/fmt/print.hpp>
 #include <jank/util/scope_exit.hpp>
 #include <jank/error/analyze.hpp>
+#include <jank/error/codegen.hpp>
 
 namespace jank::analyze::cpp_util
 {
@@ -25,12 +26,16 @@ namespace jank::analyze::cpp_util
     static_cast<void>(runtime::__rt_ctx->jit_prc.interpreter->Parse("1"));
   }
 
-  jtl::string_result<void> instantiate_if_needed(jtl::ptr<void> const scope)
+  jtl::string_result<void> instantiate_if_needed(jtl::ptr<void> scope)
   {
     if(!scope)
     {
       return ok();
     }
+
+    /* We might have a type alias, which will not be considered a template, so we want
+     * to get to the bottom of it. */
+    scope = Cpp::GetUnderlyingScope(scope);
 
     /* If we have a template specialization and we want to access one of its members, we
      * need to be sure that it's fully instantiated. If we don't, the member won't
@@ -47,6 +52,7 @@ namespace jank::analyze::cpp_util
 
       if(Cpp::IsTemplatedFunction(scope))
       {
+        //util::println("\tinstantiating fn return type");
         return instantiate_if_needed(Cpp::GetScopeFromType(Cpp::GetFunctionReturnType(scope)));
       }
     }
@@ -111,9 +117,16 @@ namespace jank::analyze::cpp_util
           auto const fns{ Cpp::GetFunctionsUsingName(old_scope, subs) };
           if(fns.empty())
           {
-            return err(util::format("Unable to find '{}' within namespace '{}'.",
-                                    subs,
-                                    Cpp::GetQualifiedName(old_scope)));
+            auto const old_scope_name{ Cpp::GetQualifiedName(old_scope) };
+            if(old_scope_name.empty())
+            {
+              return err(util::format("Unable to find '{}' within the global namespace.", subs));
+            }
+            else
+            {
+              return err(
+                util::format("Unable to find '{}' within namespace '{}'.", subs, old_scope_name));
+            }
           }
           if(auto const res = instantiate_if_needed(fns[0]); res.is_err())
           {
@@ -284,6 +297,74 @@ namespace jank::analyze::cpp_util
     return res;
   }
 
+  jtl::immutable_string get_qualified_type_name(jtl::ptr<void> const type)
+  {
+    if(type == untyped_object_ptr_type())
+    {
+      return "jank::runtime::object_ref";
+    }
+    /* TODO: Handle typed object refs, too. */
+
+    /* TODO: We probably want a recursive approach to this, for types and scopes. */
+    auto const qual_type{ clang::QualType::getFromOpaquePtr(type) };
+    if(qual_type->isNullPtrType())
+    {
+      return "std::nullptr_t";
+    }
+
+    if(auto const *alias{
+         llvm::dyn_cast_or_null<clang::TypedefType>(qual_type.getTypePtrOrNull()) };
+       alias)
+    {
+      if(auto const *alias_decl{ alias->getDecl() }; alias_decl)
+      {
+        return get_qualified_name(alias_decl);
+      }
+    }
+
+    if(auto const scope{ Cpp::GetScopeFromType(type) }; scope)
+    {
+      auto name{ get_qualified_name(scope) };
+      if(Cpp::IsPointerType(type))
+      {
+        name = name + "*";
+      }
+      return name;
+    }
+
+    return Cpp::GetTypeAsString(type);
+  }
+
+  /* This is a quick and dirty helper to get the RTTI for a given QualType. We need
+   * this for exception catching. */
+  void register_rtti(jtl::ptr<void> const type)
+  {
+    auto &diag{ runtime::__rt_ctx->jit_prc.interpreter->getCompilerInstance()->getDiagnostics() };
+    clang::DiagnosticErrorTrap const trap{ diag };
+    auto const alias{ runtime::__rt_ctx->unique_namespaced_string() };
+    auto const code{ util::format("&typeid({})", Cpp::GetTypeAsString(type)) };
+    clang::Value value;
+    auto exec_res{ runtime::__rt_ctx->jit_prc.interpreter->ParseAndExecute(code.c_str(), &value) };
+    if(exec_res || trap.hasErrorOccurred())
+    {
+      throw error::internal_codegen_failure(
+        util::format("Unable to get RTTI for '{}'.", Cpp::GetTypeAsString(type)));
+    }
+
+    auto const lljit{ runtime::__rt_ctx->jit_prc.interpreter->getExecutionEngine() };
+    llvm::orc::SymbolMap symbols;
+    llvm::orc::MangleAndInterner interner{ lljit->getExecutionSession(), lljit->getDataLayout() };
+    auto const &symbol{ Cpp::MangleRTTI(type) };
+    symbols[interner(symbol)] = llvm::orc::ExecutorSymbolDef(
+      llvm::orc::ExecutorAddr(llvm::pointerToJITTargetAddress(value.getPtr())),
+      llvm::JITSymbolFlags());
+
+    auto res{ lljit->getMainJITDylib().define(llvm::orc::absoluteSymbols(symbols)) };
+    /* We may have duplicate definitions of RTTI in some circumstances, but we
+     * can just ignore those. */
+    llvm::consumeError(jtl::move(res));
+  }
+
   jtl::ptr<void> untyped_object_ptr_type()
   {
     static jtl::ptr<void> const ret{ Cpp::GetPointerType(Cpp::GetTypeFromScope(
@@ -325,6 +406,12 @@ namespace jank::analyze::cpp_util
     }
 
     return Cpp::IsImplicitlyConvertible(from, to);
+  }
+
+  bool is_pointer_to_void_conversion(jtl::ptr<void> const from, jtl::ptr<void> const to)
+  {
+    return (Cpp::IsPointerType(from) && Cpp::IsPointerType(to))
+      && (Cpp::IsVoid(Cpp::GetPointeeType(from)) || Cpp::IsVoid(Cpp::GetPointeeType(to)));
   }
 
   bool is_untyped_object(jtl::ptr<void> const type)
@@ -395,17 +482,21 @@ namespace jank::analyze::cpp_util
         {
           return expression_type(typed_expr->body);
         }
+        else if constexpr(jtl::is_same<T, expr::if_>)
+        {
+          return expression_type(typed_expr->then);
+        }
         else if constexpr(jtl::is_same<T, expr::do_>)
         {
           if(typed_expr->values.empty())
           {
-            return untyped_object_ptr_type();
+            return untyped_object_ref_type();
           }
           return expression_type(typed_expr->values.back());
         }
         else
         {
-          return untyped_object_ptr_type();
+          return untyped_object_ref_type();
         }
       },
       expr);
@@ -436,7 +527,7 @@ namespace jank::analyze::cpp_util
     jank_debug_assert(type);
     if(Cpp::IsVoid(type))
     {
-      return untyped_object_ptr_type();
+      return untyped_object_ref_type();
     }
     return type;
   }
@@ -467,7 +558,7 @@ namespace jank::analyze::cpp_util
 
     /* If any arg can be implicitly converted to multiple functions, we have an ambiguity.
      * The user will need to specify the correct type by using a cast. */
-    for(usize arg_idx{}; arg_idx < max_arg_count; ++arg_idx)
+    for(usize arg_idx{}; arg_idx < arg_count; ++arg_idx)
     {
       /* If our input argument here isn't an object ptr, there's no implicit conversion
        * we're going to consider. Skip to the next argument. */
@@ -791,8 +882,14 @@ namespace jank::analyze::cpp_util
     if((Cpp::IsPointerType(expr_type) || Cpp::IsArrayType(expr_type))
        && (Cpp::IsPointerType(expected_type) || Cpp::IsArrayType(expected_type)))
     {
-      auto const res{ determine_implicit_conversion(Cpp::GetPointeeType(expr_type),
-                                                    Cpp::GetPointeeType(expected_type)) };
+      auto const expr_pointee_type{ Cpp::GetPointeeType(expr_type) };
+      auto const expected_pointee_type{ Cpp::GetPointeeType(expected_type) };
+      if(Cpp::IsVoid(expr_pointee_type) || Cpp::IsVoid(expected_pointee_type))
+      {
+        return implicit_conversion_action::none;
+      }
+
+      auto const res{ determine_implicit_conversion(expr_pointee_type, expected_pointee_type) };
       switch(res)
       {
         case implicit_conversion_action::none:

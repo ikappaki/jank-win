@@ -3,6 +3,17 @@ set(CMAKE_SKIP_INSTALL_RPATH ON)
 install(TARGETS jank_exe_phase_2 DESTINATION bin)
 install(FILES ${CMAKE_BINARY_DIR}/libjank-standalone.a DESTINATION lib/jank/${PROJECT_VERSION}/lib)
 
+function(install_symlink target link_name dir)
+  install(CODE "
+    set(libdir \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${dir}\")
+    execute_process(
+      COMMAND \${CMAKE_COMMAND} -E create_symlink
+        ${target}
+        \"\${libdir}/${link_name}\"
+    )
+  ")
+endfunction()
+
 # This is a helper which recursively takes headers from one directory
 # and installs them into the same output include directory. It
 # handles various different situations of include/ or not, supports
@@ -51,30 +62,14 @@ jank_glob_install_without_prefix(
 )
 
 jank_glob_install_without_prefix(
-  INPUT_PREFIX "${CMAKE_SOURCE_DIR}/third-party/bpptree/"
-  PATTERN "${CMAKE_SOURCE_DIR}/third-party/bpptree/include/*"
-)
-
-jank_glob_install_without_prefix(
   INPUT_PREFIX "${CMAKE_SOURCE_DIR}/third-party/immer/"
   OUTPUT_PREFIX "include/"
   PATTERN "${CMAKE_SOURCE_DIR}/third-party/immer/immer/*"
 )
 
 jank_glob_install_without_prefix(
-  INPUT_PREFIX "${CMAKE_SOURCE_DIR}/third-party/cli11/"
-  PATTERN "${CMAKE_SOURCE_DIR}/third-party/cli11/include/*"
-)
-
-jank_glob_install_without_prefix(
   INPUT_PREFIX "${CMAKE_SOURCE_DIR}/third-party/ftxui/"
   PATTERN "${CMAKE_SOURCE_DIR}/third-party/ftxui/include/*"
-)
-
-jank_glob_install_without_prefix(
-  INPUT_PREFIX "${CMAKE_SOURCE_DIR}/third-party/libzippp/src/"
-  OUTPUT_PREFIX "include/"
-  PATTERN "${CMAKE_SOURCE_DIR}/third-party/libzippp/src/*"
 )
 
 jank_glob_install_without_prefix(
@@ -118,7 +113,14 @@ if(jank_local_clang AND jank_install_local_clang)
   # When the compiler is installed, it needs to be relinked to its shared objects.
   # We know where they'll be, relative to the compiler, though.
   set(CMAKE_SKIP_INSTALL_RPATH OFF)
-  set_target_properties(jank_exe_phase_2 PROPERTIES INSTALL_RPATH "\$ORIGIN/../lib/jank/${PROJECT_VERSION}/lib")
+
+  # macOS doesn't use $ORIGIN in the same way as Linux. CMake doesn't provide a way to generalize.
+  # Details are here: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
+  if(APPLE)
+    set_target_properties(jank_exe_phase_2 PROPERTIES INSTALL_RPATH "@executable_path/../lib/jank/${PROJECT_VERSION}/lib")
+  else()
+    set_target_properties(jank_exe_phase_2 PROPERTIES INSTALL_RPATH "\$ORIGIN/../lib/jank/${PROJECT_VERSION}/lib")
+  endif()
 
   install(
     PROGRAMS
@@ -133,13 +135,26 @@ if(APPLE)
     FILES
     ${llvm_dir}/lib/libLLVM.dylib
     ${llvm_dir}/lib/libclang-cpp.dylib
+    ${llvm_dir}/lib/libc++.1.0.dylib
+    ${llvm_dir}/lib/libc++.1.dylib
+    ${llvm_dir}/lib/libc++.dylib
+    ${llvm_dir}/lib/libc++abi.1.0.dylib
+    ${llvm_dir}/lib/libc++abi.1.dylib
+    ${llvm_dir}/lib/libc++abi.dylib
+    ${llvm_dir}/lib/libunwind.1.0.dylib
+    ${llvm_dir}/lib/libunwind.1.dylib
+    ${llvm_dir}/lib/libunwind.dylib
     DESTINATION lib/jank/${PROJECT_VERSION}/lib
   )
 else()
+  file(
+    GLOB jank_llvm_install_libs
+    LIST_DIRECTORIES false
+    ${llvm_dir}/lib/libLLVM.*
+    ${llvm_dir}/lib/libclang-cpp.*)
   install(
     FILES
-    ${llvm_dir}/lib/libLLVM.so.${LLVM_VERSION_MAJOR}.0git
-    ${llvm_dir}/lib/libclang-cpp.so.${LLVM_VERSION_MAJOR}.0git
+    ${jank_llvm_install_libs}
     DESTINATION lib/jank/${PROJECT_VERSION}/lib
   )
 endif()

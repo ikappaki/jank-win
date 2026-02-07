@@ -6,13 +6,13 @@ namespace jank::runtime::obj
 {
   using reduced_ref = oref<struct reduced>;
 
-  struct reduced : gc
+  struct reduced
   {
     static constexpr object_type obj_type{ object_type::reduced };
     static constexpr bool pointer_free{ false };
 
     reduced() = default;
-    reduced(object_ref o);
+    reduced(object_ref const o);
 
     /* behavior::object_like */
     bool equal(object const &) const;
@@ -24,6 +24,7 @@ namespace jank::runtime::obj
     /* behavior::derefable */
     object_ref deref() const;
 
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
     object_ref val{};
   };

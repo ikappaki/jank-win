@@ -11,7 +11,7 @@ namespace jank::runtime::obj
   {
   }
 
-  persistent_list::persistent_list(object_ref const meta,
+  persistent_list::persistent_list(jtl::option<object_ref> const &meta,
                                    runtime::detail::native_persistent_list const &d)
     : data{ d }
     , meta{ meta }
@@ -114,10 +114,10 @@ namespace jank::runtime::obj
     return data.size();
   }
 
-  persistent_list_ref persistent_list::conj(object_ref head) const
+  persistent_list_ref persistent_list::conj(object_ref const head) const
   {
     auto l(data.conj(head));
-    auto ret(make_box<persistent_list>(std::move(l)));
+    auto ret(make_box<persistent_list>(meta, std::move(l)));
     return ret;
   }
 
@@ -126,7 +126,7 @@ namespace jank::runtime::obj
     auto const first(data.first());
     if(first.is_none())
     {
-      return jank_nil;
+      return jank_nil();
     }
     return first.unwrap();
   }
@@ -161,7 +161,7 @@ namespace jank::runtime::obj
 
   object_ref persistent_list::peek() const
   {
-    return data.first().unwrap_or(jank_nil);
+    return data.first().unwrap_or(jank_nil());
   }
 
   persistent_list_ref persistent_list::pop() const

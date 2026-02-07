@@ -3,8 +3,12 @@
 #include <filesystem>
 #include <optional>
 
-#include <jank/runtime/object.hpp>
+#include <folly/Synchronized.h>
+
 #include <jtl/result.hpp>
+
+#include <jank/runtime/object.hpp>
+#include <jank/error.hpp>
 
 namespace jank::runtime
 {
@@ -90,16 +94,25 @@ namespace jank::runtime::module
     file_view() = default;
     file_view(file_view const &) = delete;
     file_view(file_view &&) noexcept;
-    file_view(file_handle f, char const * const h, usize const s);
-    file_view(jtl::immutable_string const &buff);
+    file_view(jtl::immutable_string const &file,
+              file_handle f,
+              char const * const h,
+              usize const s);
+    file_view(jtl::immutable_string const &file, jtl::immutable_string const &buff);
     ~file_view();
 
     char const *data() const;
     usize size() const;
+    jtl::immutable_string const &file_path() const;
+
+    file_view &operator=(file_view const &) = delete;
+    file_view &operator=(file_view &&fv) noexcept;
 
     jtl::immutable_string_view view() const;
 
   private:
+    void reset();
+
     /* In the case where we map a file, we track this information so we can read it and
      * later unmap it. */
     std::optional<file_handle> fd{};
@@ -110,6 +123,9 @@ namespace jank::runtime::module
      * we'll just have the data instead. Checking data.empty() is how we know which
      * of these cases to follow. */
     jtl::immutable_string buff;
+
+    /* In either case, we keep track of the file name. */
+    jtl::immutable_string file;
   };
 
   jtl::immutable_string path_to_module(std::filesystem::path const &path);
@@ -121,6 +137,9 @@ namespace jank::runtime::module
   nest_native_ns(jtl::immutable_string const &native_ns, jtl::immutable_string const &end);
   bool is_nested_module(jtl::immutable_string const &module);
   jtl::immutable_string module_to_native_ns(jtl::immutable_string const &orig_module);
+
+  /* A core module is one baked into the jank runtime. For example, clojure.core. */
+  bool is_core_module(jtl::immutable_string const &module);
 
   struct loader
   {
@@ -163,30 +182,36 @@ namespace jank::runtime::module
 
     loader();
 
-    static jtl::string_result<file_view> read_file(jtl::immutable_string const &path);
+    static jtl::result<file_view, error_ref> read_file(jtl::immutable_string const &path);
+    jtl::result<file_view, error_ref> read_module(jtl::immutable_string const &module);
 
-    jtl::string_result<find_result> find(jtl::immutable_string const &module, origin const ori);
+    jtl::result<find_result, error_ref> find(jtl::immutable_string const &module, origin const ori);
 
     bool is_loaded(jtl::immutable_string const &module);
     void set_is_loaded(jtl::immutable_string const &module);
 
-    jtl::string_result<void> load(jtl::immutable_string const &module, origin const ori);
-    jtl::string_result<void>
+    jtl::result<void, error_ref> load(jtl::immutable_string const &module, origin const ori);
+    jtl::result<void, error_ref>
     load_o(jtl::immutable_string const &module, file_entry const &entry) const;
-    jtl::string_result<void>
+    jtl::result<void, error_ref>
     load_cpp(jtl::immutable_string const &module, file_entry const &entry) const;
-    jtl::string_result<void> load_jank(file_entry const &entry) const;
-    jtl::string_result<void> load_cljc(file_entry const &entry) const;
+    jtl::result<void, error_ref> load_jank(file_entry const &entry) const;
+    jtl::result<void, error_ref> load_cljc(file_entry const &entry) const;
 
     /* This only adds a single path, so it's assumed there's no separator present. */
     void add_path(jtl::immutable_string const &path);
 
     object_ref to_runtime_data() const;
 
-    jtl::immutable_string paths;
-    /* TODO: These will need synchonization. */
-    /* This maps module strings to entries. Module strings are like fully qualified Java
-     * class names. For example, `clojure.core`, `jank.compiler`, etc. */
-    native_unordered_map<jtl::immutable_string, entry> entries;
+    struct mutable_state
+    {
+      jtl::immutable_string paths;
+      /* This maps module strings to entries. Module strings are like fully qualified namespace
+     * names. For example, `clojure.core`, `jank.compiler`, etc. */
+      native_unordered_map<jtl::immutable_string, entry> entries;
+    };
+
+    /*** XXX: Everything here is thread-safe. ***/
+    folly::Synchronized<mutable_state> state;
   };
 }

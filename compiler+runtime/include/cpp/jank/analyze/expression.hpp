@@ -7,12 +7,23 @@
 namespace jank::analyze
 {
   using local_frame_ptr = jtl::ptr<struct local_frame>;
+  using local_frame_ref = jtl::ref<struct local_frame>;
+  using local_binding_ref = jtl::ref<struct local_binding>;
 
   enum class expression_position : u8
   {
+    /* Used for function arguments, let bindings, and other places where the value is
+     * immediately consumed (not ignored). */
     value,
+    /* Used for the first form of a call. */
+    call,
+    /* Used for body forms within a `do` which are not the last. */
     statement,
-    tail
+    /* Used for the very last form of a function. */
+    tail,
+    /* Used when only types are permitted (cpp/cast, cpp/new, etc). Types are also viable
+     * in call position, in case we're calling a constructor. */
+    type
   };
 
   constexpr char const *expression_position_str(expression_position const pos)
@@ -21,10 +32,14 @@ namespace jank::analyze
     {
       case expression_position::value:
         return "value";
+      case expression_position::call:
+        return "call";
       case expression_position::statement:
         return "statement";
       case expression_position::tail:
         return "tail";
+      case expression_position::type:
+        return "type";
     }
     return "unknown";
   }
@@ -59,6 +74,7 @@ namespace jank::analyze
     cpp_type,
     cpp_value,
     cpp_cast,
+    cpp_unsafe_cast,
     cpp_call,
     cpp_constructor_call,
     cpp_member_call,
@@ -127,6 +143,8 @@ namespace jank::analyze
         return "cpp_value";
       case expression_kind::cpp_cast:
         return "cpp_cast";
+      case expression_kind::cpp_unsafe_cast:
+        return "cpp_unsafe_cast";
       case expression_kind::cpp_call:
         return "cpp_call";
       case expression_kind::cpp_constructor_call:
@@ -150,7 +168,7 @@ namespace jank::analyze
   }
 
   /* Common base class for every expression. */
-  struct expression : gc
+  struct expression
   {
     static constexpr bool pointer_free{ false };
 

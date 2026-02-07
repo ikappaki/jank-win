@@ -3,10 +3,13 @@
   #include <windows.h>
 #endif
 
+#include <Interpreter/Compatibility.h>
 #include <llvm-c/Target.h>
+#include <llvm/ExecutionEngine/Orc/AbsoluteSymbols.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/ManagedStatic.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/ExecutionEngine/Orc/Mangling.h>
 
 #include <utility>
 
@@ -14,7 +17,9 @@
 #include <jank/runtime/visit.hpp>
 #include <jank/runtime/context.hpp>
 #include <jank/runtime/core.hpp>
+#include <jank/runtime/core/meta.hpp>
 #include <jank/aot/resource.hpp>
+#include <jank/error/runtime.hpp>
 #include <jank/profile/time.hpp>
 #include <jank/util/scope_exit.hpp>
 #include <jank/util/try.hpp>
@@ -52,18 +57,29 @@ extern "C"
   jank_object_ref jank_eval(jank_object_ref const s)
   {
     auto const s_obj(try_object<obj::persistent_string>(reinterpret_cast<object *>(s)));
-    return __rt_ctx->eval_string(s_obj->data).erase();
+    return __rt_ctx->eval_string(s_obj->data).unwrap_or(jank_nil()).erase().data;
   }
 
   jank_object_ref jank_read_string(jank_object_ref const s)
   {
     auto const s_obj(try_object<obj::persistent_string>(reinterpret_cast<object *>(s)));
-    return __rt_ctx->read_string(s_obj->data).erase();
+    return __rt_ctx->read_string(s_obj->data).erase().data;
   }
 
   jank_object_ref jank_read_string_c(char const * const s)
   {
-    return __rt_ctx->read_string(s).erase();
+    return __rt_ctx->read_string(s).erase().data;
+  }
+
+  jank_object_ref jank_ns_intern(jank_object_ref const sym)
+  {
+    auto const sym_obj(try_object<obj::symbol>(reinterpret_cast<object *>(sym)));
+    return __rt_ctx->intern_ns(sym_obj).erase().data;
+  }
+
+  jank_object_ref jank_ns_intern_c(char const * const sym)
+  {
+    return __rt_ctx->intern_ns(sym).erase().data;
   }
 
   void jank_ns_set_symbol_counter(char const * const ns, jank_u64 const count)
@@ -78,53 +94,56 @@ extern "C"
     __rt_ctx->intern_ns(ns_obj->data);
 
     auto const name_obj(try_object<obj::persistent_string>(reinterpret_cast<object *>(name)));
-    return __rt_ctx->intern_var(ns_obj->data, name_obj->data).expect_ok().erase();
+    return __rt_ctx->intern_var(ns_obj->data, name_obj->data).expect_ok().erase().data;
   }
 
   jank_object_ref jank_var_intern_c(char const * const ns, char const * const name)
   {
     __rt_ctx->intern_ns(ns);
-    return __rt_ctx->intern_var(ns, name).expect_ok().erase();
+    return __rt_ctx->intern_var(ns, name).expect_ok().erase().data;
   }
 
   jank_object_ref jank_var_bind_root(jank_object_ref const var, jank_object_ref const val)
   {
     auto const var_obj(try_object<runtime::var>(reinterpret_cast<object *>(var)));
     auto const val_obj(reinterpret_cast<object *>(val));
-    return var_obj->bind_root(val_obj).erase();
+    return var_obj->bind_root(val_obj).erase().data;
   }
 
   jank_object_ref jank_var_set_dynamic(jank_object_ref const var, jank_object_ref const dynamic)
   {
     auto const var_obj(try_object<runtime::var>(reinterpret_cast<object *>(var)));
     auto const dynamic_obj(reinterpret_cast<object *>(dynamic));
-    return var_obj->set_dynamic(truthy(dynamic_obj)).erase();
+    return var_obj->set_dynamic(truthy(dynamic_obj)).erase().data;
   }
 
   jank_object_ref jank_keyword_intern(jank_object_ref const ns, jank_object_ref const name)
   {
     auto const ns_obj(reinterpret_cast<object *>(ns));
     auto const name_obj(reinterpret_cast<object *>(name));
-    return __rt_ctx->intern_keyword(to_string(ns_obj), to_string(name_obj)).expect_ok().erase();
+    return __rt_ctx->intern_keyword(to_string(ns_obj), to_string(name_obj))
+      .expect_ok()
+      .erase()
+      .data;
   }
 
   jank_object_ref jank_deref(jank_object_ref const o)
   {
     auto const o_obj(reinterpret_cast<object *>(o));
-    return deref(o_obj).erase();
+    return deref(o_obj).erase().data;
   }
 
   jank_object_ref jank_call0(jank_object_ref const f)
   {
     auto const f_obj(reinterpret_cast<object *>(f));
-    return dynamic_call(f_obj).erase();
+    return dynamic_call(f_obj).erase().data;
   }
 
   jank_object_ref jank_call1(jank_object_ref const f, jank_object_ref const a1)
   {
     auto const f_obj(reinterpret_cast<object *>(f));
     auto const a1_obj(reinterpret_cast<object *>(a1));
-    return dynamic_call(f_obj, a1_obj).erase();
+    return dynamic_call(f_obj, a1_obj).erase().data;
   }
 
   jank_object_ref
@@ -133,7 +152,7 @@ extern "C"
     auto const f_obj(reinterpret_cast<object *>(f));
     auto const a1_obj(reinterpret_cast<object *>(a1));
     auto const a2_obj(reinterpret_cast<object *>(a2));
-    return dynamic_call(f_obj, a1_obj, a2_obj).erase();
+    return dynamic_call(f_obj, a1_obj, a2_obj).erase().data;
   }
 
   jank_object_ref jank_call3(jank_object_ref const f,
@@ -145,7 +164,7 @@ extern "C"
     auto const a1_obj(reinterpret_cast<object *>(a1));
     auto const a2_obj(reinterpret_cast<object *>(a2));
     auto const a3_obj(reinterpret_cast<object *>(a3));
-    return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj).erase();
+    return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj).erase().data;
   }
 
   jank_object_ref jank_call4(jank_object_ref const f,
@@ -159,7 +178,7 @@ extern "C"
     auto const a2_obj(reinterpret_cast<object *>(a2));
     auto const a3_obj(reinterpret_cast<object *>(a3));
     auto const a4_obj(reinterpret_cast<object *>(a4));
-    return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj, a4_obj).erase();
+    return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj, a4_obj).erase().data;
   }
 
   jank_object_ref jank_call5(jank_object_ref const f,
@@ -175,7 +194,7 @@ extern "C"
     auto const a3_obj(reinterpret_cast<object *>(a3));
     auto const a4_obj(reinterpret_cast<object *>(a4));
     auto const a5_obj(reinterpret_cast<object *>(a5));
-    return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj, a4_obj, a5_obj).erase();
+    return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj, a4_obj, a5_obj).erase().data;
   }
 
   jank_object_ref jank_call6(jank_object_ref const f,
@@ -193,7 +212,7 @@ extern "C"
     auto const a4_obj(reinterpret_cast<object *>(a4));
     auto const a5_obj(reinterpret_cast<object *>(a5));
     auto const a6_obj(reinterpret_cast<object *>(a6));
-    return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj, a4_obj, a5_obj, a6_obj).erase();
+    return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj, a4_obj, a5_obj, a6_obj).erase().data;
   }
 
   jank_object_ref jank_call7(jank_object_ref const f,
@@ -213,7 +232,7 @@ extern "C"
     auto const a5_obj(reinterpret_cast<object *>(a5));
     auto const a6_obj(reinterpret_cast<object *>(a6));
     auto const a7_obj(reinterpret_cast<object *>(a7));
-    return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj, a4_obj, a5_obj, a6_obj, a7_obj).erase();
+    return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj, a4_obj, a5_obj, a6_obj, a7_obj).erase().data;
   }
 
   jank_object_ref jank_call8(jank_object_ref const f,
@@ -236,7 +255,8 @@ extern "C"
     auto const a7_obj(reinterpret_cast<object *>(a7));
     auto const a8_obj(reinterpret_cast<object *>(a8));
     return dynamic_call(f_obj, a1_obj, a2_obj, a3_obj, a4_obj, a5_obj, a6_obj, a7_obj, a8_obj)
-      .erase();
+      .erase()
+      .data;
   }
 
   jank_object_ref jank_call9(jank_object_ref const f,
@@ -270,7 +290,8 @@ extern "C"
                         a7_obj,
                         a8_obj,
                         a9_obj)
-      .erase();
+      .erase()
+      .data;
   }
 
   jank_object_ref jank_call10(jank_object_ref const f,
@@ -307,7 +328,8 @@ extern "C"
                         a8_obj,
                         a9_obj,
                         a10_obj)
-      .erase();
+      .erase()
+      .data;
   }
 
   jank_object_ref jank_call11(jank_object_ref const f,
@@ -347,44 +369,45 @@ extern "C"
                         a9_obj,
                         a10_obj,
                         try_object<obj::persistent_list>(rest_obj))
-      .erase();
+      .erase()
+      .data;
   }
 
   jank_object_ref jank_const_nil()
   {
-    return jank_nil.erase();
+    return jank_nil().data;
   }
 
   jank_object_ref jank_const_true()
   {
-    return jank_true.erase();
+    return jank_true.erase().data;
   }
 
   jank_object_ref jank_const_false()
   {
-    return jank_false.erase();
+    return jank_false.erase().data;
   }
 
   jank_object_ref jank_integer_create(jank_i64 const i)
   {
-    return make_box(i).erase();
+    return make_box(i).erase().data;
   }
 
   jank_object_ref jank_big_integer_create(char const * const s)
   {
     jank_assert(s);
-    return make_box<runtime::obj::big_integer>(s).erase();
+    return make_box<runtime::obj::big_integer>(s).erase().data;
   }
 
   jank_object_ref jank_big_decimal_create(char const * const s)
   {
     jank_assert(s);
-    return make_box<runtime::obj::big_decimal>(s).erase();
+    return make_box<runtime::obj::big_decimal>(s).erase().data;
   }
 
   jank_object_ref jank_real_create(jank_f64 const r)
   {
-    return make_box(r).erase();
+    return make_box(r).erase().data;
   }
 
   jank_object_ref
@@ -392,44 +415,45 @@ extern "C"
   {
     return make_box(runtime::obj::ratio_data(reinterpret_cast<object *>(numerator),
                                              reinterpret_cast<object *>(denominator)))
-      .erase();
+      .erase()
+      .data;
   }
 
   jank_object_ref jank_string_create(char const *s)
   {
     jank_debug_assert(s);
-    return make_box(s).erase();
+    return make_box(s).erase().data;
   }
 
   jank_object_ref jank_symbol_create(jank_object_ref const ns, jank_object_ref const name)
   {
     auto const ns_obj(reinterpret_cast<object *>(ns));
     auto const name_obj(reinterpret_cast<object *>(name));
-    return make_box<obj::symbol>(ns_obj, name_obj).erase();
+    return make_box<obj::symbol>(ns_obj, name_obj).erase().data;
   }
 
   jank_object_ref jank_character_create(char const *s)
   {
     jank_debug_assert(s);
-    return make_box<obj::character>(read::parse::get_char_from_literal(s).unwrap()).erase();
+    return make_box<obj::character>(read::parse::get_char_from_literal(s).unwrap()).erase().data;
   }
 
   jank_object_ref jank_regex_create(char const *s)
   {
     jank_debug_assert(s);
-    return make_box<obj::re_pattern>(s).erase();
+    return make_box<obj::re_pattern>(s).erase().data;
   }
 
   jank_object_ref jank_uuid_create(char const *s)
   {
     jank_debug_assert(s);
-    return make_box<obj::uuid>(s).erase();
+    return make_box<obj::uuid>(s).erase().data;
   }
 
   jank_object_ref jank_inst_create(char const *s)
   {
     jank_debug_assert(s);
-    return make_box<obj::inst>(s).erase();
+    return make_box<obj::inst>(s).erase().data;
   }
 
   jank_object_ref jank_list_create(jank_u64 const size, ...)
@@ -449,7 +473,7 @@ extern "C"
     va_end(args);
 
     runtime::detail::native_persistent_list const npl{ v.rbegin(), v.rend() };
-    return make_box<obj::persistent_list>(std::move(npl)).erase();
+    return make_box<obj::persistent_list>(std::move(npl)).erase().data;
   }
 
   jank_object_ref jank_vector_create(jank_u64 const size, ...)
@@ -467,7 +491,7 @@ extern "C"
     }
 
     va_end(args);
-    return trans.to_persistent().erase();
+    return trans.to_persistent().erase().data;
   }
 
   /* TODO: Meta for maps, vectors, sets, symbols, and fns. */
@@ -489,7 +513,7 @@ extern "C"
     }
 
     va_end(args);
-    return trans.to_persistent().erase();
+    return trans.to_persistent().erase().data;
   }
 
   jank_object_ref jank_set_create(u64 const size, ...)
@@ -507,18 +531,48 @@ extern "C"
     }
 
     va_end(args);
-    return trans.to_persistent().erase();
+    return trans.to_persistent().erase().data;
   }
 
-  jank_object_ref jank_box(void const * const o)
+  jank_object_ref jank_box(char const * const type, void const * const o)
   {
-    return make_box<obj::opaque_box>(o).erase();
+    return make_box<obj::opaque_box>(o, type).erase().data;
   }
 
-  void *jank_unbox(jank_object_ref const o)
+  void *jank_unbox(char const * const type, jank_object_ref const o)
   {
     auto const box_obj(reinterpret_cast<object *>(o));
-    return try_object<obj::opaque_box>(box_obj)->data;
+    auto const op_box{ try_object<obj::opaque_box>(box_obj) };
+    if(!op_box->canonical_type.empty() && op_box->canonical_type != type)
+    {
+      throw error::runtime_invalid_unbox(
+        util::format("This opaque box holds a '{}', but it was unboxed as a '{}'.",
+                     op_box->canonical_type,
+                     type),
+        object_source(op_box));
+    }
+
+    return op_box->data;
+  }
+
+  void *jank_unbox_with_source(char const * const type,
+                               jank_object_ref const o,
+                               jank_object_ref const source)
+  {
+    auto const box_obj(reinterpret_cast<object *>(o));
+    auto const source_obj(reinterpret_cast<object *>(source));
+    auto const op_box{ try_object<obj::opaque_box>(box_obj) };
+    if(!op_box->canonical_type.empty() && op_box->canonical_type != type)
+    {
+      throw error::runtime_invalid_unbox(
+        util::format("This opaque box holds a '{}', but it was unboxed as a '{}'.",
+                     op_box->canonical_type,
+                     type),
+        meta_source(source_obj),
+        object_source(op_box));
+    }
+
+    return op_box->data;
   }
 
   jank_arity_flags jank_function_build_arity_flags(jank_u8 const highest_fixed_arity,
@@ -532,7 +586,7 @@ extern "C"
 
   jank_object_ref jank_function_create(jank_arity_flags const arity_flags)
   {
-    return make_box<obj::jit_function>(arity_flags).erase();
+    return make_box<obj::jit_function>(arity_flags).erase().data;
   }
 
   void
@@ -699,7 +753,7 @@ extern "C"
 
   jank_object_ref jank_closure_create(jank_arity_flags const arity_flags, void * const context)
   {
-    return make_box<obj::jit_closure>(arity_flags, context).erase();
+    return make_box<obj::jit_closure>(arity_flags, context).erase().data;
   }
 
   void
@@ -908,8 +962,8 @@ extern "C"
     {
       if(o_obj->type == object_type::integer)
       {
-        /* We don't hash the integer if it's an int32 value. This is to be consistent with how keys are hashed in jank's
-         * case macro. */
+        /* We don't hash the integer if it's within an i32 value.
+         * This is to be consistent with how keys are hashed in jank's case macro. */
         integer = (integer >= std::numeric_limits<i32>::min()
                    && integer <= std::numeric_limits<i32>::max())
           ? integer
@@ -939,34 +993,6 @@ extern "C"
   void jank_throw(jank_object_ref const o)
   {
     throw runtime::object_ref{ reinterpret_cast<object *>(o) };
-  }
-
-  jank_object_ref jank_try(jank_object_ref const try_fn,
-                           jank_object_ref const catch_fn,
-                           jank_object_ref const finally_fn)
-  {
-    util::scope_exit const finally{ [=]() {
-      auto const finally_fn_obj(reinterpret_cast<object *>(finally_fn));
-      if(finally_fn_obj != jank_nil)
-      {
-        dynamic_call(finally_fn_obj);
-      }
-    } };
-
-    auto const try_fn_obj(reinterpret_cast<object *>(try_fn));
-    auto const catch_fn_obj(reinterpret_cast<object *>(catch_fn));
-    if(catch_fn_obj == jank_nil)
-    {
-      return dynamic_call(try_fn_obj).erase();
-    }
-    try
-    {
-      return dynamic_call(try_fn_obj).erase();
-    }
-    catch(object_ref const e)
-    {
-      return dynamic_call(catch_fn_obj, e).erase();
-    }
   }
 
   void jank_profile_enter(char const * const label)
@@ -1022,10 +1048,25 @@ extern "C"
       std::locale::global(std::locale(""));
 #endif
 
-      /* The GC needs to enabled even before arg parsing, since our native types,
+      /* The GC needs to initialized even before arg parsing, since our native types,
        * like strings, use the GC for allocations. It can still be configured later. */
       GC_set_all_interior_pointers(1);
-      GC_enable();
+
+      /* Collection is disabled on macOS, due to a combination of two issues. Firstly,
+       * bdwgc will prematurely collect if we don't use malloc redirection. My research
+       * indicates that this is due to (at least) bdwgc not knowing about globals within
+       * JIT compiled C++. Secondly, we can't use malloc redirection on macOS due to an
+       * issue which leads to a crash in LLVM code.
+       *
+       * https://github.com/bdwgc/bdwgc/issues/829 */
+      if constexpr(jtl::current_platform == jtl::platform::macos_like
+                   || jtl::current_platform == jtl::platform::windows_like)
+      {
+        /* Although this is called enable, by calling it right here, we actually disable the GC. */
+        GC_enable();
+      }
+
+      GC_init();
 
       llvm::llvm_shutdown_obj const Y{};
 
@@ -1052,13 +1093,13 @@ extern "C"
   jank_object_ref jank_parse_command_line_args(int const argc, char const **argv)
   {
     obj::transient_vector trans;
-    auto const args{ util::cli::parse_empty(argc, argv) };
+    auto const args{ util::cli::parse_into_vector(argc, argv) };
 
     for(auto const &arg : args)
     {
       trans.conj_in_place(make_box(arg));
     }
 
-    return trans.to_persistent().erase();
+    return trans.to_persistent().erase().data;
   }
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include <jtl/option.hpp>
 
 #include <jank/runtime/object.hpp>
@@ -11,17 +13,15 @@ namespace jank::runtime::obj
   using lazy_sequence_ref = oref<struct lazy_sequence>;
 
   /* TODO: IPending analog, to implement `realized?`. */
-  struct lazy_sequence : gc
+  struct lazy_sequence
   {
     static constexpr object_type obj_type{ object_type::lazy_sequence };
     static constexpr bool pointer_free{ false };
     static constexpr bool is_sequential{ true };
 
     lazy_sequence() = default;
-    lazy_sequence(lazy_sequence &&) noexcept = default;
-    lazy_sequence(lazy_sequence const &) = default;
-    lazy_sequence(object_ref fn);
-    lazy_sequence(object_ref fn, object_ref sequence);
+    lazy_sequence(object_ref const fn);
+    lazy_sequence(object_ref const fn, object_ref const sequence);
 
     /* behavior::object_like */
     bool equal(object const &) const;
@@ -37,30 +37,36 @@ namespace jank::runtime::obj
     /* behavior::sequenceable */
     object_ref first() const;
     object_ref next() const;
-    obj::cons_ref conj(object_ref head) const;
+    obj::cons_ref conj(object_ref const head) const;
 
     /* behavior::sequenceable_in_place */
     //lazy_sequence_ref next_in_place();
 
+    /* behavior::realizable */
+    bool is_realized() const;
+
     /* behavior::metadatable */
-    lazy_sequence_ref with_meta(object_ref m) const;
+    lazy_sequence_ref with_meta(object_ref const m) const;
 
   private:
     object_ref resolve_fn() const;
     object_ref resolve_seq() const;
 
-    void realize() const;
+    object_ref realize() const;
     void force() const;
     void lock_and_force() const;
     object_ref sval() const;
     object_ref unwrap(object_ref ls) const;
 
   public:
-    /* TODO: Synchronize. */
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
+    jtl::option<object_ref> meta;
+
+    /*** XXX: Everything here is thread-safe. ***/
+    mutable std::recursive_mutex mutex;
     mutable object_ref fn{};
     mutable object_ref sv{};
     mutable object_ref s{};
-    jtl::option<object_ref> meta;
   };
 }

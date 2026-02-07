@@ -6,7 +6,7 @@ namespace jank::runtime::obj
 {
   using boolean_ref = oref<struct boolean>;
 
-  struct boolean : gc
+  struct boolean
   {
     static constexpr object_type obj_type{ object_type::boolean };
     static constexpr bool pointer_free{ true };
@@ -33,13 +33,14 @@ namespace jank::runtime::obj
     i64 to_integer() const;
     f64 to_real() const;
 
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
     bool data{};
   };
 
   using integer_ref = oref<struct integer>;
 
-  struct integer : gc
+  struct integer
   {
     static constexpr object_type obj_type{ object_type::integer };
     static constexpr bool pointer_free{ true };
@@ -66,6 +67,7 @@ namespace jank::runtime::obj
     i64 to_integer() const;
     f64 to_real() const;
 
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
     /* TODO: Is it faster to have the data first or the base first? */
     i64 data{};
@@ -73,7 +75,7 @@ namespace jank::runtime::obj
 
   using real_ref = oref<struct real>;
 
-  struct real : gc
+  struct real
   {
     static constexpr object_type obj_type{ object_type::real };
     static constexpr bool pointer_free{ true };
@@ -100,8 +102,9 @@ namespace jank::runtime::obj
     i64 to_integer() const;
     f64 to_real() const;
 
-    f64 data{};
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
+    f64 data{};
   };
 }
 

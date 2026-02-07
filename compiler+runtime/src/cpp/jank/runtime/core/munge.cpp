@@ -28,7 +28,9 @@ namespace jank::runtime
     {  '}', "_RBRACE_" },
     {  '[', "_LBRACK_" },
     {  ']', "_RBRACK_" },
-    {  '/',  "_SLASH_" },
+    {  '(', "_LPAREN_" },
+    {  ')', "_RPAREN_" },
+    {  '/',        "$" },
     { '\\', "_BSLASH_" },
     {  '?',  "_QMARK_" }
   };
@@ -40,6 +42,8 @@ namespace jank::runtime
     { "_RBRACE_",  '}' },
     { "_LBRACK_",  '[' },
     { "_RBRACK_",  ']' },
+    { "_LPAREN_",  '(' },
+    { "_RPAREN_",  ')' },
     { "_BSLASH_", '\\' },
     { "_SQUOTE_", '\'' },
     { "_DQUOTE_",  '"' },
@@ -49,7 +53,7 @@ namespace jank::runtime
     {  "_CIRCA_",  '@' },
     {  "_SHARP_",  '#' },
     {  "_CARET_",  '^' },
-    {  "_SLASH_",  '/' },
+    {        "$",  '/' },
     {   "_PERC_",  '%' },
     {   "_PLUS_",  '+' },
     {   "_BANG_",  '!' },

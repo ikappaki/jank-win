@@ -16,15 +16,7 @@
         lib,
         ...
       }: let
-        # remember to bump this rev/sha with new llvm commits
-        llvm-jank = pkgs.callPackage ./llvm.nix {
-          src = pkgs.fetchFromGitHub {
-            owner = "jank-lang";
-            repo = "llvm-project";
-            rev = "4e5928689f2399dc6aede8dde2536a98a96a1802";
-            sha256 = "sha256-mC8KHuiQ2ny6HkVeYEBGsSV5rPLuaO6h0u6SsD/mdzo=";
-          };
-        };
+        llvmPackages = pkgs.llvmPackages_22;
         # for cpptrace; versions from cpptrace/cmake/OptionVariables.cmake
         libdwarf-lite-src = pkgs.fetchFromGitHub {
           owner = "jeremy-rifkin";
@@ -38,6 +30,25 @@
           rev = "v1.5.7";
           sha256 = "sha256-tNFWIT9ydfozB8dWcmTMuZLCQmQudTFJIkSr0aG7S44=";
         };
+        # Manually set compilation and linker flags, rather than depending on
+        # them to be implicitly set in the clang wrapper scripts. This is so
+        # that the jank build process can pick up the flags such that they can
+        # be passed along to downstream jank AOT compilation commands.
+        cmakeCxxFlags = lib.concatStringsSep " " [
+          (lib.trim (lib.readFile "${llvmPackages.clang}/nix-support/cc-cflags"))
+          (lib.trim (lib.readFile "${llvmPackages.clang}/nix-support/libc-crt1-cflags"))
+        ];
+        cmakeLinkerFlags = lib.concatStringsSep " " [
+          (lib.trim (lib.readFile "${llvmPackages.clang}/nix-support/cc-ldflags"))
+          "-Wl,-rpath,${llvmPackages.stdenv.cc.libc}/lib"
+          "-L${lib.getLib llvmPackages.libllvm.lib}/lib"
+          "-L${lib.getLib pkgs.bzip2}/lib"
+          "-L${lib.getLib pkgs.openssl}/lib"
+          "-L${lib.getLib pkgs.zlib}/lib"
+          "-L${lib.getLib pkgs.zstd}/lib"
+          "-L${lib.getLib pkgs.libedit}/lib"
+          "-L${lib.getLib pkgs.libxml2}/lib"
+        ];
       in {
         legacyPackages = pkgs;
         formatter = pkgs.alejandra;
@@ -45,7 +56,7 @@
         packages = rec {
           default = jank-release;
 
-          jank-release = pkgs.stdenv.mkDerivation (finalAttrs: {
+          jank-release = llvmPackages.stdenv.mkDerivation (finalAttrs: {
             pname = "jank";
             version = "git";
 
@@ -58,19 +69,50 @@
               ];
             });
 
-            nativeBuildInputs = with pkgs; [git cmake ninja llvm-jank];
-            buildInputs = with pkgs; [libzip openssl];
-            checkInputs = with pkgs; [glibcLocales doctest];
+            nativeBuildInputs =
+              [
+                llvmPackages.clang
+                llvmPackages.libclang.dev
+              ]
+              ++ (with pkgs; [
+                cmake
+                git
+                ninja
+              ]);
+
+            buildInputs =
+              [
+                llvmPackages.libllvm.dev
+              ]
+              ++ (with pkgs; [
+                bzip2
+                openssl
+                zstd
+                libedit
+                libxml2
+              ]);
+
+            checkInputs = with pkgs; [
+              doctest
+              glibcLocales
+            ];
 
             postPatch = ''
               patchShebangs ./compiler+runtime/bin/ar-merge
             '';
 
+            preConfigure = ''
+              cmakeFlagsArray+=(
+                "-DCMAKE_CXX_FLAGS=${lib.escapeShellArg cmakeCxxFlags}"
+                "-DCMAKE_EXE_LINKER_FLAGS=${lib.escapeShellArg cmakeLinkerFlags}"
+                "-DCMAKE_SHARED_LINKER_FLAGS=${lib.escapeShellArg cmakeLinkerFlags}"
+                "-DCMAKE_MODULE_LINKER_FLAGS=${lib.escapeShellArg cmakeLinkerFlags}"
+              )
+            '';
+
             cmakeBuildDir = "./compiler+runtime/build";
             cmakeDir = "..";
             cmakeFlags = [
-              "-DCMAKE_C_COMPILER=${llvm-jank}/bin/clang"
-              "-DCMAKE_CXX_COMPILER=${llvm-jank}/bin/clang++"
               # TODO: Updating RPATHs during install causes the step to fail as it
               # tries to rewrite non-existent RPATHs like /lib. Needs more
               # investigation.
@@ -82,6 +124,8 @@
               # jank options
               (lib.cmakeBool "jank_unity_build" true)
               (lib.cmakeBool "jank_test" finalAttrs.doCheck)
+              # We run out of memory in CI without this.
+              (lib.cmakeBool "jank_force_phase_2" true)
             ];
 
             # Use a UTF-8 locale or else tests which use UTF-8 characters will
@@ -97,19 +141,18 @@
           });
         };
 
-        devShells.default = pkgs.mkShell {
+        devShells.default = (pkgs.mkShell.override {stdenv = llvmPackages.stdenv;}) {
           packages = with pkgs; [
-            stdenv.cc.cc.lib
-
             ## Required tools.
             cmake
             ninja
             pkg-config
-            llvm-jank
+            llvmPackages.clang
+            llvmPackages.libclang
+            llvmPackages.libllvm
 
             ## Required libs.
             boehmgc
-            libzip
             openssl
 
             ## Dev tools.
@@ -131,8 +174,8 @@
           ];
 
           shellHook = ''
-            export CC=${llvm-jank}/bin/clang
-            export CXX=${llvm-jank}/bin/clang++
+            export CXXFLAGS=${lib.escapeShellArg cmakeCxxFlags}
+            export LDFLAGS=${lib.escapeShellArg cmakeLinkerFlags}
             export ASAN_OPTIONS=detect_leaks=0
           '';
 

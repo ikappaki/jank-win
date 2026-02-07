@@ -17,6 +17,11 @@ namespace llvm
   }
 }
 
+namespace clang
+{
+  class Value;
+}
+
 namespace Cpp
 {
   class Interpreter;
@@ -30,6 +35,7 @@ namespace jank::jit
     ~processor();
 
     void eval_string(jtl::immutable_string const &s) const;
+    void eval_string(jtl::immutable_string const &s, clang::Value *) const;
     void load_object(jtl::immutable_string_view const &path) const;
     void load_dynamic_library(jtl::immutable_string const &path) const;
     void load_ir_module(llvm::orc::ThreadSafeModule &&m) const;
@@ -43,6 +49,8 @@ namespace jank::jit
     load_dynamic_libs(native_vector<jtl::immutable_string> const &libs) const;
     jtl::option<jtl::immutable_string> find_dynamic_lib(jtl::immutable_string const &lib) const;
 
+    /*** XXX: Everything here is immutable after initialization. ***/
+    /*** XXX: Calls through the interpreter and LLVM JIT runtime are thread-safe. ***/
     std::unique_ptr<Cpp::Interpreter> interpreter;
     native_vector<std::filesystem::path> library_dirs;
 

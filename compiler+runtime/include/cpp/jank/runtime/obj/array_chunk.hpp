@@ -6,7 +6,7 @@ namespace jank::runtime::obj
 {
   using array_chunk_ref = oref<struct array_chunk>;
 
-  struct array_chunk : gc
+  struct array_chunk
   {
     static constexpr object_type obj_type{ object_type::array_chunk };
     static constexpr bool pointer_free{ false };
@@ -27,9 +27,10 @@ namespace jank::runtime::obj
     array_chunk_ref chunk_next() const;
     array_chunk_ref chunk_next_in_place();
     usize count() const;
-    object_ref nth(object_ref index) const;
-    object_ref nth(object_ref index, object_ref fallback) const;
+    object_ref nth(object_ref const index) const;
+    object_ref nth(object_ref const index, object_ref const fallback) const;
 
+    /*** XXX: Everything here is immutable after initialization. ***/
     object base{ obj_type };
     native_vector<object_ref> buffer;
     usize offset{};

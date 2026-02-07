@@ -16,12 +16,17 @@
 #include <jank/runtime/core/make_box.hpp>
 #include <jank/aot/processor.hpp>
 #include <jank/util/clang.hpp>
-#include <jank/util/dir.hpp>
+#include <jank/util/environment.hpp>
 #include <jank/util/fmt/print.hpp>
 #include <jank/util/scope_exit.hpp>
 #include <jank/util/try.hpp>
+#include <jank/c_api.h>
 
 #include <clojure/core_native.hpp>
+
+#ifdef JANK_PHASE_2
+extern "C" void jank_load_clojure_core();
+#endif
 
 namespace jank::environment
 {
@@ -84,7 +89,7 @@ namespace jank::environment
   static jtl::immutable_string jank_asserts()
   {
 #ifndef NDEBUG
-    return util::format("{}─ ✅ jank assertions are enabled; performance will be impacted {}\n",
+    return util::format("{}─ ⚠️ jank assertions are enabled; performance will be impacted {}\n",
                         terminal_style::yellow,
                         terminal_style::reset);
 #else
@@ -123,23 +128,25 @@ namespace jank::environment
                     JANK_RESOURCE_DIR,
                     terminal_style::reset,
                     terminal_style::bright_black,
-                    (exists ? " (found)" : " (not found)"),
+                    /* NOLINTNEXTLINE(readability-avoid-nested-conditional-operator) */
+                    (relative ? "" : (exists ? " (found)" : " (not found)")),
                     terminal_style::reset);
 
     if(relative)
     {
-      util::format_to(sb,
-                      "\n{}─ {}{} jank resolved resource dir: {}{}{} {}{}{}",
-                      col,
-                      icon,
-                      terminal_style::reset,
-                      terminal_style::blue,
-                      dir.c_str(),
-                      terminal_style::reset,
-                      terminal_style::bright_black,
-                      /* TODO: Logic is not right here. */
-                      dev_build ? " (ignored for dev build)" : " (not found)",
-                      terminal_style::reset);
+      util::format_to(
+        sb,
+        "\n{}─ {}{} jank resolved resource dir: {}{}{} {}{}{}",
+        col,
+        icon,
+        terminal_style::reset,
+        terminal_style::blue,
+        dir.c_str(),
+        terminal_style::reset,
+        terminal_style::bright_black,
+        /* NOLINTNEXTLINE(readability-avoid-nested-conditional-operator) */
+        (exists ? "(found)" : (dev_build ? "(ignored for dev build)" : "(not found)")),
+        terminal_style::reset);
     }
 
     return sb.release();
@@ -156,7 +163,7 @@ namespace jank::environment
                         path,
                         terminal_style::reset,
                         terminal_style::bright_black,
-                        configured_path_exists ? " (found)" : " (not found)",
+                        configured_path_exists ? "(found)" : "(not found)",
                         terminal_style::reset);
   }
 
@@ -266,7 +273,7 @@ namespace jank::environment
                           terminal_style::reset);
     }
 
-    return util::format("{}─ ✅{} jank pch dir: {}{}{} {}(no pch found){}",
+    return util::format("{}─ ⚠️{} jank pch dir: {}{}{} {}(no pch found){}",
                         terminal_style::yellow,
                         terminal_style::reset,
                         terminal_style::blue,
@@ -315,6 +322,8 @@ namespace jank::environment
                         terminal_style::reset);
   }
 
+  /* This is disabled until IR gen supports ref counting OR we switch back to using a GC. */
+  [[maybe_unused]]
   static jtl::immutable_string check_ir_jit()
   {
     bool error{};
@@ -326,7 +335,7 @@ namespace jank::environment
 
     JANK_TRY
     {
-      auto const res{ runtime::__rt_ctx->eval_string("((fn* [] \"healthy\"))") };
+      auto const res{ runtime::__rt_ctx->eval_string("((fn* [] \"healthy\"))").unwrap() };
       if(!runtime::equal(res, runtime::make_box("healthy")))
       {
         error = true;
@@ -378,18 +387,24 @@ namespace jank::environment
 
       auto const saved_opts{ util::cli::opts };
       util::cli::opts.target_module = "health";
+      util::cli::opts.output_target = util::cli::compilation_target::object;
       util::cli::opts.output_filename = exe_output.string();
       util::cli::opts.module_path = path_tmp;
       util::scope_exit const finally{ /* NOLINTNEXTLINE(bugprone-exception-escape) */
                                       [=] { util::cli::opts = saved_opts; }
       };
 
-      runtime::__rt_ctx->compile_module("clojure.core").expect_ok();
+#ifdef JANK_PHASE_2
+      jank_load_clojure_core();
+#else
+      runtime::__rt_ctx->load_module("/clojure.core", runtime::module::origin::latest).expect_ok();
+#endif
+
       runtime::__rt_ctx->module_loader.add_path(path_tmp);
       runtime::__rt_ctx->compile_module(util::cli::opts.target_module).expect_ok();
 
       jank::aot::processor const aot_prc{};
-      aot_prc.compile(util::cli::opts.target_module).expect_ok();
+      aot_prc.build_executable(util::cli::opts.target_module).expect_ok();
 
       auto const stdout_file{ std::filesystem::path{ path_tmp } / "stdout" };
       auto const proc_code{ llvm::sys::ExecuteAndWait(
@@ -400,6 +415,7 @@ namespace jank::environment
         5) };
       if(proc_code != 0)
       {
+        util::println(stderr, R"(Compiled program exited with code '{}'.)", proc_code);
         error = true;
       }
 
@@ -408,6 +424,11 @@ namespace jank::environment
       std::getline(ifs, line);
       if(line != "healthy")
       {
+        util::println(stderr, "{}", line);
+        while(std::getline(ifs, line))
+        {
+          util::println(stderr, "{}", line);
+        }
         error = true;
       }
     }
@@ -476,16 +497,23 @@ namespace jank::environment
     if(!fatal_error)
     {
       util::println("{}", header("jank runtime", max_width));
-      runtime::__rt_ctx = new(GC) runtime::context{};
-      jank_load_clojure_core_native();
-      util::println("{}─ ✅{} jank runtime initialized",
-                    terminal_style::green,
-                    terminal_style::reset);
-      util::println("{}", pch_location());
-      util::println("{}", check_cpp_jit());
-      util::println("{}", check_ir_jit());
-      util::println("{}", check_aot());
-      util::println("");
+      auto const ret{ jank_init(0, nullptr, true, [](int const, char const **) {
+        jank_load_clojure_core_native();
+        util::println("{}─ ✅{} jank runtime initialized",
+                      terminal_style::green,
+                      terminal_style::reset);
+        util::println("{}", pch_location());
+        util::println("{}", check_cpp_jit());
+        //util::println("{}", check_ir_jit());
+        util::println("{}", check_aot());
+        util::println("");
+
+        return 0;
+      }) };
+      if(ret != 0)
+      {
+        fatal_error = true;
+      }
     }
 
 

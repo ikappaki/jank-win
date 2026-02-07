@@ -11,6 +11,7 @@ misc-static-assert,\
 misc-redundant-expression,\
 misc-misleading-identifier,\
 misc-definitions-in-headers,\
+-misc-use-internal-linkage,\
 -clang-diagnostic-unknown-warning-option,\
 -clang-analyzer-cplusplus.NewDeleteLeaks,\
 -clang-analyzer-cplusplus.NewDelete,\
@@ -47,6 +48,8 @@ misc-definitions-in-headers,\
 -bugprone-macro-parentheses,\
 -bugprone-throwing-static-initialization,\
 -readability-redundant-member-init,\
+-readability-redundant-typename,\
+-readability-redundant-casting,\
 -readability-implicit-bool-conversion,\
 -readability-magic-numbers,\
 -readability-identifier-length,\
