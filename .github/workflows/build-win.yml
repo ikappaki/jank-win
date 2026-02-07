@@ -34,8 +34,7 @@ jobs:
         env:
           MSYSTEM: CLANG64
         run: |
-          WS=$(cygpath -u "${{ github.workspace }}")
-          pushd $WS/compiler+runtime
+          pushd compiler+runtime
             ./bin/build-clang
           popd
       - name: Verify cached Clang
@@ -43,8 +42,7 @@ jobs:
         env:
           MSYSTEM: CLANG64
         run: |
-          WS=$(cygpath -u "${{ github.workspace }}")
-          ls -al $WS/compiler+runtime/build/llvm-install
+          ls -al compiler+runtime/build/llvm-install
 
   build:
     needs:
