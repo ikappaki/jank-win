@@ -17,6 +17,7 @@ std::ofstream __jank_mingw64_ofs;
 #include <jank/runtime/core/truthy.hpp>
 #include <jank/runtime/core/seq.hpp>
 #include <jank/runtime/core/meta.hpp>
+#include <jank/runtime/core/call.hpp>
 #include <jank/runtime/core.hpp>
 #include <jank/util/scope_exit.hpp>
 #include <jank/c_api.h>
