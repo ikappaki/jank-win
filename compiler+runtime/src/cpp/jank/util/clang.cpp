@@ -91,7 +91,7 @@ namespace jank::util
     std::filesystem::path const configured_path{ JANK_CLANG_PATH };
     if(std::filesystem::exists(configured_path))
     {
-      return result = configured_path.string().c_str();
+      return result = configured_path.string();
     }
 
     std::filesystem::path const resource_dir{ util::resource_dir().c_str() };
@@ -278,6 +278,9 @@ namespace jank::util
     };
     std::filesystem::create_directories(output_path.parent_path());
 
+    std::string output_path_str = output_path.string();
+    std::string include_path_str = include_path.string();
+
     args.emplace_back("-Xclang");
     args.emplace_back("-fincremental-extensions");
     args.emplace_back("-Xclang");
@@ -293,9 +296,9 @@ namespace jank::util
     args.emplace_back("-x");
     args.emplace_back("c++-header");
     args.emplace_back("-o");
-    args.emplace_back(output_path.string().c_str());
+    args.emplace_back(output_path_str.c_str());
     args.emplace_back("-c");
-    args.emplace_back(include_path.string().c_str());
+    args.emplace_back(include_path_str.c_str());
     /* We need to add this again for it to get through. Not sure why. */
     args.emplace_back("-std=gnu++20");
 
@@ -310,7 +313,7 @@ namespace jank::util
     }
 
     println(stderr, "done!");
-    return ok(output_path.string().c_str());
+    return ok(output_path_str);
   }
 
   jtl::immutable_string default_target_triple()
