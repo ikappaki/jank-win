@@ -407,11 +407,12 @@ namespace jank::environment
       aot_prc.build_executable(util::cli::opts.target_module).expect_ok();
 
       auto const stdout_file{ std::filesystem::path{ path_tmp } / "stdout" };
+      std::string stdout_file_str = stdout_file.string();
       auto const proc_code{ llvm::sys::ExecuteAndWait(
         exe_output.string(),
         { exe_output.string() },
         std::nullopt,
-        { std::nullopt, stdout_file.string().c_str(), std::nullopt },
+        { std::nullopt, stdout_file_str.c_str(), std::nullopt },
         5) };
       if(proc_code != 0)
       {
