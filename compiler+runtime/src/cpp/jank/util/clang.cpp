@@ -278,8 +278,8 @@ namespace jank::util
     };
     std::filesystem::create_directories(output_path.parent_path());
 
-    std::string output_path_str = output_path.string();
-    std::string include_path_str = include_path.string();
+    std::string const output_path_str = output_path.string();
+    std::string const include_path_str = include_path.string();
 
     args.emplace_back("-Xclang");
     args.emplace_back("-fincremental-extensions");
@@ -313,7 +313,7 @@ namespace jank::util
     }
 
     println(stderr, "done!");
-    return ok(output_path_str);
+    return ok(output_path_str.c_str());
   }
 
   jtl::immutable_string default_target_triple()

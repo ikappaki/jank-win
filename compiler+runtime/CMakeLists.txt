@@ -106,6 +106,7 @@ set(
   -std=gnu++20
   # https://groups.google.com/g/llvm-dev/c/W-OweiAjDcU?pli=1
   -femulated-tls
+  -DGC_THREADS
   -DIMMER_HAS_LIBGC=1 -DIMMER_TAGGED_NODE=0 -DHAVE_CXX14=1
   -DCPPINTEROP_USE_REPL
   -DFOLLY_HAVE_JEMALLOC=0 -DFOLLY_HAVE_TCMALLOC=0 -DFOLLY_ASSUME_NO_JEMALLOC=1 -DFOLLY_ASSUME_NO_TCMALLOC=1
@@ -490,6 +491,7 @@ add_library(
   src/cpp/jank/runtime/core/munge.cpp
   src/cpp/jank/runtime/core/math.cpp
   src/cpp/jank/runtime/core/meta.cpp
+  src/cpp/jank/runtime/core/call.cpp
   src/cpp/jank/runtime/perf.cpp
   src/cpp/jank/runtime/module/loader.cpp
   src/cpp/jank/runtime/object.cpp
@@ -552,7 +554,6 @@ add_library(
   src/cpp/jank/runtime/obj/delay.cpp
   src/cpp/jank/runtime/obj/future.cpp
   src/cpp/jank/runtime/obj/reduced.cpp
-  src/cpp/jank/runtime/behavior/callable.cpp
   src/cpp/jank/runtime/behavior/metadatable.cpp
   src/cpp/jank/analyze/processor.cpp
   src/cpp/jank/analyze/expression.cpp
@@ -600,6 +601,7 @@ add_library(
   src/cpp/jank/evaluate.cpp
   src/cpp/jank/codegen/processor.cpp
   src/cpp/jank/codegen/llvm_processor.cpp
+  src/cpp/jank/codegen/optimize.cpp
   src/cpp/jank/jit/processor.cpp
   src/cpp/jank/aot/processor.cpp
   src/cpp/jank/aot/resource.cpp
@@ -898,7 +900,7 @@ if(jank_test)
     test/cpp/jank/read/lex.cpp
     test/cpp/jank/read/parse.cpp
     test/cpp/jank/analyze/box.cpp
-    test/cpp/jank/runtime/behavior/callable.cpp
+    test/cpp/jank/runtime/behavior/call.cpp
     test/cpp/jank/runtime/core/seq.cpp
     test/cpp/jank/runtime/detail/native_persistent_list.cpp
     test/cpp/jank/runtime/obj/big_integer.cpp
@@ -974,11 +976,12 @@ endif()
 # Build a string of all of our AOT compilation flags so we can share them with our incremental PCH.
 set(jank_incremental_pch_flag ${CMAKE_BINARY_DIR}/incremental.pch)
 
-# We pass the macOS SDK root into the JIT runtime, but the same path
-# needs to be used when compiling the incremental PCH. Without this, you
-# will see lots of include errors and, in particular, this guy:
+# On macOS, we need the SDK root in order to properly compile anything.
+# Generally, this is set in the SDKROOT variable, but it users may forget
+# to do this. If it's not present, we'll make a best effort to fill in a value.
+# Otherwise, users will see lots of include errors and, in particular, this guy:
 # > We don't know how to get the definition of mbstate_t on your platform.
-if(APPLE)
+if(APPLE AND NOT DEFINED ENV{SDKROOT})
   execute_process(
     COMMAND /usr/bin/xcrun --show-sdk-path
     OUTPUT_VARIABLE jank_xcrun_sysroot
