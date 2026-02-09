@@ -139,7 +139,7 @@ int main(int argc, const char** argv)
 #endif
 
     std::filesystem::path const jank_path{ util::process_dir().c_str() };
-    std::string jank_path_str = jank_path.string();
+    const std::string jank_path_str = jank_path.string();
     compiler_args.emplace_back(strdup("-L"));
     compiler_args.emplace_back(strdup(jank_path_str.c_str()));
 
@@ -364,8 +364,8 @@ int main(int argc, const char** argv)
     std::filesystem::path const jank_resource_dir{ util::resource_dir().c_str() };
     compiler_args.push_back("-include");
     auto const prelude_path{ jank_resource_dir / "include/cpp/jank/prelude.hpp" };
-    std::string prelude_path_str = prelude_path.string();
-    std::string module_path_str = module_path.string();
+    const std::string prelude_path_str = prelude_path.string();
+    const std::string module_path_str = module_path.string();
     compiler_args.push_back(prelude_path_str.c_str());
 
     compiler_args.push_back("-c");

@@ -278,8 +278,8 @@ namespace jank::util
     };
     std::filesystem::create_directories(output_path.parent_path());
 
-    std::string output_path_str = output_path.string();
-    std::string include_path_str = include_path.string();
+    const std::string output_path_str = output_path.string();
+    const std::string include_path_str = include_path.string();
 
     args.emplace_back("-Xclang");
     args.emplace_back("-fincremental-extensions");
