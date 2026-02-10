@@ -481,6 +481,14 @@ package_llvm-tools() {
   rm -rf "${srcdir}"/llvm-libs
   mkdir -p "${srcdir}"/llvm-libs/${MINGW_PREFIX}/bin
   mv -f "${pkgdir}"${MINGW_PREFIX}/bin/lib{LLVM-*,LTO,Remarks}.dll "${srcdir}"/llvm-libs/${MINGW_PREFIX}/bin
+
+  # libLLVM-<ver>.dll.a -> libLLVM.dll.a
+  cd "${pkgdir}${MINGW_PREFIX}/lib"
+  for f in libLLVM-*.dll.a; do
+    ln -s "$f" libLLVM.dll.a
+    break
+  done
+
   # remove duplicate headers already in llvm package
   rm -r "${pkgdir}"${MINGW_PREFIX}/include/llvm-c
 
@@ -502,6 +510,13 @@ package_llvm-libs() {
   conflicts=("${MINGW_PACKAGE_PREFIX}-llvm<16.0.2-2")
 
   cp -r "${srcdir}"/llvm-libs/${MINGW_PREFIX} "${pkgdir}"${MINGW_PREFIX}
+
+  # libLLVM-<ver>.dll -> libLLVM.dll
+  cd "${pkgdir}${MINGW_PREFIX}/bin"
+  for f in libLLVM-*.dll; do
+    ln -s "$f" libLLVM.dll
+    break
+  done
 
   install -Dm644 "${srcdir}"/llvm/LICENSE.TXT "${pkgdir}"${MINGW_PREFIX}/share/licenses/llvm-libs/LICENSE
 }
