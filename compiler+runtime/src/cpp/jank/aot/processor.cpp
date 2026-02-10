@@ -280,14 +280,12 @@ int main(int argc, const char** argv)
     for(auto const &lib : { "-ljank-standalone",
                             /* Default libraries that jank depends on. */
                             "-lm",
-#if defined(__MINGW64__)
-                            "-lLLVM-22-rc1",
-                            "-lpthread",
-#else
                             "-lLLVM",
-#endif
                             "-lclang-cpp",
                             "-lcrypto",
+#if defined(__MINGW64__)
+                            "-lpthread",
+#endif
                             "-lz",
                             "-lzstd" })
     {
