@@ -168,14 +168,8 @@ namespace jank::jit
       pch_path = res.expect_ok();
     }
     auto const &pch_path_str{ pch_path.unwrap() };
-#ifdef __MINGW64__
-    (void)pch_path_str;
-    args.emplace_back("-include");
-    args.emplace_back(strdup("jank/prelude.hpp"));
-#else
     args.emplace_back("-include-pch");
     args.emplace_back(strdup(pch_path_str.c_str()));
-#endif
 
     args.emplace_back("-w");
     args.emplace_back("-Wno-c++11-narrowing");
