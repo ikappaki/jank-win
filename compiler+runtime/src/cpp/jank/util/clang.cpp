@@ -229,9 +229,15 @@ namespace jank::util
     auto const resource{ aot::find_resource("incremental.pch") };
     if(resource.is_some())
     {
-      runtime::__rt_ctx->jit_prc.vfs["/virtual/incremental.pch"]
+      static constexpr char virtual_path[] =
+#ifdef _WIN32
+        "j:/virtual/incremental.pch";
+#else
+        "/virtual/incremental.pch";
+#endif
+      runtime::__rt_ctx->jit_prc.vfs[virtual_path]
         = { resource.unwrap().data(), resource.unwrap().size() };
-      return "/virtual/incremental.pch";
+      return virtual_path;
     }
 
     auto dev_path{ jank_path / "incremental.pch" };
