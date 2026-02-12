@@ -1032,6 +1032,8 @@ extern "C"
     JANK_TRY
     {
 #ifdef _WIN32
+      std::setlocale(LC_CTYPE, ".UTF8");
+      std::locale::global(std::locale(".UTF-8"));
       SetConsoleOutputCP(CP_UTF8);
       SetConsoleCP(CP_UTF8);
 #else
