@@ -88,7 +88,7 @@ namespace jank::jit
         // skip tests mentioned in file.
         static auto const windows_skips = [] {
           std::unordered_set<std::string> s;
-          std::ifstream infile("test/cpp/jank/jit/windows_skips.txt");
+          std::ifstream infile("test/jit_windows_skips.txt");
           for(std::string line; std::getline(infile, line);)
           {
             if(auto pos = line.find_first_not_of(" \t\r\n");
