@@ -1,4 +1,4 @@
-# try/catch related tests (issue #2)
+# try/catch related jank jit tests to skip on Windows (issue #2)
 fail-incompatible-arguments.jank
 pass-catch-cpp-string-literal.jank
 pass-destructor-unwinding.jank
