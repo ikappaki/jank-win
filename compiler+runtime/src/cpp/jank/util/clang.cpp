@@ -33,7 +33,8 @@ namespace jank::util
   {
     auto const tmp{ std::filesystem::temp_directory_path() };
     std::string path_tmp = (tmp / "jank-clang-XXXXXX").string();
-    mkstemp(path_tmp.data());
+    int fd = mkstemp(path_tmp.data());
+    close(fd);
     auto const proc_code{ llvm::sys::ExecuteAndWait(path.string(),
                                                     { path.string(), "--version" },
                                                     std::nullopt,
