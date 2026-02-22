@@ -1,10 +1,30 @@
-[![CIWIN](https://github.com/ikappaki/jank-win/actions/workflows/build-win.yml/badge.svg)](https://github.com/ikappaki/jank-win/actions/workflows/build-win.yml) [![CI](https://github.com/ikappaki/jank-win/actions/workflows/build.yml/badge.svg)](https://github.com/ikappaki/jank-win/actions/workflows/build.yml)
+[![CIWIN](https://github.com/ikappaki/jank-win/actions/workflows/build-win.yml/badge.svg)](https://github.com/ikappaki/jank-win/actions/workflows/build-win.yml) [![CI](https://github.com/ikappaki/jank-win/actions/workflows/build-compiler+runtime.yml/badge.svg)](https://github.com/ikappaki/jank-win/actions/workflows/build-compiler+runtime.yml)
 
 # jank on MS-Windows
 
-This repository contains **jank** ported to Windows and tracks the upstream **jank** repository.
+This repository contains **jank** ported to Windows and tracks the upstream **jank** repository. All builds and development target the [MSYS2 CLANG64]((https://www.msys2.org/) toolchain on Windows.
 
 The only current functional limitation is that exceptions thrown by the C++ backend are not yet supported. An [open ticket](https://github.com/llvm/llvm-project/issues/126365) has been filed in the`llvm-project`.
+
+## Prebuilt Windows binaries
+
+Prebuilt **jank** and LLVM packages are available via [jank-win-release](https://github.com/ikappaki/jank-win-release).
+
+Install the updater in an **MSYS2 CLANG64** shell:
+
+```sh
+curl -fsSL https://github.com/ikappaki/jank-win-release/raw/refs/heads/main/jank-win-updater | bash
+~/.local/bin/jank-win-updater --all      # install LLVM and jank
+```
+
+Later, jank or its LLVM dependency can be installed or updated individually:
+
+```sh
+jank-win-updater --llvm
+jank-win-updater --jank
+```
+
+The script prints the Windows path to add to `PATH` so `jank` can run from PowerShell or cmd.exe.
 
 ## Compiling Clang/LLVM
 First, [install MSYS2](https://www.msys2.org/). MSYS2 provides a Unix like environment and toolchains for building native Windows software. Each MSYS2 installation is fully isolated when installed in a separate directory.

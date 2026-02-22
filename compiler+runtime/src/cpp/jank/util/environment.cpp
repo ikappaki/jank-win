@@ -38,16 +38,16 @@ namespace jank::util
       res = home;
     }
 #ifdef _WIN32
-    else if (const char* userprofile = getenv("USERPROFILE"))
+    else if(char const *userprofile = getenv("USERPROFILE"))
     {
-        res = userprofile;
+      res = userprofile;
     }
-    else if (const char* drive = getenv("HOMEDRIVE"))
+    else if(char const *drive = getenv("HOMEDRIVE"))
     {
-        if (const char* path = getenv("HOMEPATH"))
-        {
-            res = std::string(drive) + path;
-        }
+      if(char const *path = getenv("HOMEPATH"))
+      {
+        res = std::string(drive) + path;
+      }
     }
 #endif
     return res;
