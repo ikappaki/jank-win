@@ -18,6 +18,22 @@
        raw
        fallback))))
 
+(defn bash-run
+  "Returns a PATH wrapped for execution in Bash on Windows, returns the
+  PATH unchanged on other platforms."
+  [path]
+  (if (b.f/windows?)
+    (let [bash-exe (b.f/which "bash")]
+      (when-not bash-exe
+        (throw (ex-info "Unable to find bash." {})))
+      (str bash-exe " -c " (b.f/unixify path)))
+    path))
+
+(defmacro string=
+  "Compare L and R strings ignoring line ending differences."
+  [l r]
+  `(= (string/split-lines ~l) (string/split-lines ~r)))
+
 (defn format-ms [ms]
   (let [units [[3600000 "h"] [60000 "m"] [1000 "s"] [1 "ms"]]
         extract (fn [ms [unit label]]
@@ -32,11 +48,11 @@
           (recur rem-ms (rest units) (if val (conj result val) result)))))))
 
 (defn log-boundary [title]
-  (println "\n────────────────" title "────────────────")
+  (println "\n----------------" title "----------------")
   (summary/boundary title))
 
 (defn log-step [title]
-  (println "\n────" title "────")
+  (println "\n----" title "----")
   (summary/step title))
 
 (defn log [& args]
