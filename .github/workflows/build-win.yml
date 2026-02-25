@@ -5,145 +5,111 @@ on:
 
 jobs:
 
-  # windows-build-clang:
-  #   name: Windows MSYS2 - clang
-  #   runs-on: windows-2022
-  #   timeout-minutes: 200
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         submodules: true
-  #     - name: Cache Clang/LLVM
-  #       id: clang-cache
-  #       uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
-  #       with:
-  #         path: |
-  #           ${{ github.workspace }}/compiler+runtime/build/llvm-install
-  #         key: clang-${{ runner.os }}-${{ hashFiles('compiler+runtime/bin/build-clang', 'compiler+runtime/third-party/MINGW-packages/mingw-w64-llvm/**') }}
+  windows-build-clang:
+    name: Windows MSYS2 - clang
+    runs-on: windows-2022
+    timeout-minutes: 200
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Cache Clang/LLVM
+        id: clang-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: |
+            ${{ github.workspace }}/compiler+runtime/build/llvm-install
+          key: clang-${{ runner.os }}-${{ hashFiles('compiler+runtime/bin/build-clang', 'compiler+runtime/third-party/MINGW-packages/mingw-w64-llvm/**') }}
 
-  #     - uses: msys2/setup-msys2@v2
-  #       if: steps.clang-cache.outputs.cache-hit != 'true'
-  #       with:
-  #         msystem: CLANG64
-  #         install: base-devel git mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-ninja mingw-w64-clang-x86_64-pkgconf mingw-w64-clang-x86_64-libunwind mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-z3 mingw-w64-clang-x86_64-python mingw-w64-clang-x86_64-compiler-rt mingw-w64-clang-x86_64-libc++
-  #         update: true
+      - uses: msys2/setup-msys2@v2
+        if: steps.clang-cache.outputs.cache-hit != 'true'
+        with:
+          msystem: CLANG64
+          install: base-devel git mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-ninja mingw-w64-clang-x86_64-pkgconf mingw-w64-clang-x86_64-libunwind mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-z3 mingw-w64-clang-x86_64-python mingw-w64-clang-x86_64-compiler-rt mingw-w64-clang-x86_64-libc++
+          update: true
 
-  #     - name: Build Clang/LLVM
-  #       if: steps.clang-cache.outputs.cache-hit != 'true'
-  #       shell: msys2 {0}
-  #       env:
-  #         MSYSTEM: CLANG64
-  #       run: |
-  #         pushd compiler+runtime
-  #           ./bin/build-clang
-  #         popd
-  #     - name: Verify cached Clang
-  #       env:
-  #         MSYSTEM: CLANG64
-  #       run: dir compiler+runtime/build/llvm-install
+      - name: Build Clang/LLVM
+        if: steps.clang-cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        env:
+          MSYSTEM: CLANG64
+        run: |
+          pushd compiler+runtime
+            ./bin/build-clang
+          popd
+      - name: Verify cached Clang
+        env:
+          MSYSTEM: CLANG64
+        run: dir compiler+runtime/build/llvm-install
 
-  # build:
-  #   needs:
-  #     windows-build-clang
+  build:
+    needs:
+      windows-build-clang
 
-  #   # if: ${{ github.event_name != 'push' || github.ref != 'refs/heads/master'}}
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include: [
-  #         # { msystem: UCRT64, runner: windows-2022},
-  #         { msystem: CLANG64, runner: windows-2022},
-  #         # { msystem: MINGW64, runner: windows-2022},
-  #         # { msystem: MINGW32, runner: windows-2022},
-  #         # { msystem: CLANGARM64, runner: windows-11-arm}
-  #       ]
-  #   name: ${{ matrix.msystem }}
-  #   runs-on: ${{ matrix.runner }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         submodules: recursive
-
-  #     - uses: msys2/setup-msys2@v2
-  #       with:
-  #         msystem: ${{ matrix.msystem }}
-  #         install: base-devel curl zip mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc
-  #         update: true
-
-  #     - name: Cache Clang/LLVM
-  #       uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
-  #       with:
-  #         path: |
-  #           ${{ github.workspace }}/compiler+runtime/build/llvm-install
-  #         key: clang-${{ runner.os }}-${{ hashFiles('compiler+runtime/bin/build-clang', 'compiler+runtime/third-party/MINGW-packages/mingw-w64-llvm/**') }}
-
-  #     - name: install jank clang64 compiler
-  #       shell: msys2 {0}
-  #       run: |
-  #         cd compiler+runtime
-  #         ./bin/build-clang -i
-  #         clang++ --version
-
-  #     - name: build
-  #       shell: msys2 {0}
-  #       run: |
-  #         cd compiler+runtime
-  #         ./bin/configure -GNinja -DCMAKE_BUILD_TYPE=Release -Djank_test=on
-  #         ./bin/compile
-
-  #     - name: test
-  #       shell: msys2 {0}
-  #       run: |
-  #         cd compiler+runtime
-  #         build/jank check-health
-  #         build/jank-test
-
-  #     - name: Install clojure tools
-  #       uses: DeLaGuardo/setup-clojure@13.4
-  #       with:
-  #         # Install just one or all simultaneously
-  #         # The value must indicate a particular version of the tool, or use 'latest'
-  #         # to always provision the latest version
-  #         bb: latest                    # Babashka
-
-  #     - name: Get babashka version
-  #       run: |
-  #         bb --version
-  #         where.exe bb
-
-  #         # - name: bash-test
-  #     #   shell: msys2 {0}
-  #     #   run: |
-  #     #     cd compiler+runtime
-  #     #     build/jank check-health
-  #     #     build/jank-test
-
-  #     # - name: Upload build artifacts
-  #     #   uses: actions/upload-artifact@v4
-  #     #   with:
-  #     #     name: jank-${{ matrix.msystem }}
-  #     #     path: |
-  #     #       compiler+runtime/build/**
-
-  test:
+    # if: ${{ github.event_name != 'push' || github.ref != 'refs/heads/master'}}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { msystem: CLANG64, runner: windows-2022 }
-
+        include: [
+          # { msystem: UCRT64, runner: windows-2022},
+          { msystem: CLANG64, runner: windows-2022},
+          # { msystem: MINGW64, runner: windows-2022},
+          # { msystem: MINGW32, runner: windows-2022},
+          # { msystem: CLANGARM64, runner: windows-11-arm}
+        ]
     name: ${{ matrix.msystem }}
     runs-on: ${{ matrix.runner }}
-
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: base-devel curl zip mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc
+          update: true
+
+      - name: Cache Clang/LLVM
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: |
+            ${{ github.workspace }}/compiler+runtime/build/llvm-install
+          key: clang-${{ runner.os }}-${{ hashFiles('compiler+runtime/bin/build-clang', 'compiler+runtime/third-party/MINGW-packages/mingw-w64-llvm/**') }}
+
+      - name: install jank clang64 compiler
+        shell: msys2 {0}
+        run: |
+          cd compiler+runtime
+          ./bin/build-clang -i
+          clang++ --version
+
+      - name: build
+        shell: msys2 {0}
+        run: |
+          cd compiler+runtime
+          ./bin/configure -GNinja -DCMAKE_BUILD_TYPE=Release -Djank_test=on
+          ./bin/compile
+
+      - name: test
+        shell: msys2 {0}
+        run: |
+          cd compiler+runtime
+          build/jank check-health
+          build/jank-test
+
       - name: Install clojure tools
         uses: DeLaGuardo/setup-clojure@13.4
         with:
-          bb: latest
+          # Install just one or all simultaneously
+          # The value must indicate a particular version of the tool, or use 'latest'
+          # to always provision the latest version
+          bb: latest                    # Babashka
+
+      - name: Get babashka version
+        run: |
+          bb --version
+          where.exe bb
 
       - name: Find babashka
         id: find
@@ -153,12 +119,6 @@ jobs:
           $bb = (Get-Command bb).Path
           $dir = Split-Path $bb
           "bb_dir=$dir" >> $env:GITHUB_OUTPUT
-
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{ matrix.msystem }}
-          update: true
 
       - name: bash test
         shell: msys2 {0}
