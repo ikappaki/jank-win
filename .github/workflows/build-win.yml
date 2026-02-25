@@ -141,7 +141,7 @@ jobs:
           submodules: recursive
 
       - name: Install clojure tools
-        uses: DeLaGuardo/setup-clojure@v13.4
+        uses: DeLaGuardo/setup-clojure@13.4
         with:
           bb: latest
 
