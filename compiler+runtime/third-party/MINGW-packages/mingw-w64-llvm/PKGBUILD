@@ -511,13 +511,6 @@ package_llvm-libs() {
 
   cp -r "${srcdir}"/llvm-libs/${MINGW_PREFIX} "${pkgdir}"${MINGW_PREFIX}
 
-  # libLLVM-<ver>.dll -> libLLVM.dll
-  cd "${pkgdir}${MINGW_PREFIX}/bin"
-  for f in libLLVM-*.dll; do
-    ln -s "$f" libLLVM.dll
-    break
-  done
-
   install -Dm644 "${srcdir}"/llvm/LICENSE.TXT "${pkgdir}"${MINGW_PREFIX}/share/licenses/llvm-libs/LICENSE
 }
 
