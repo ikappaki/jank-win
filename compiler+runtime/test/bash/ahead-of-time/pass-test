@@ -59,7 +59,7 @@
       (testing "Executable in temp directory"
         (fs/with-temp-dir [dir {}]
           (fs/move default-output-file dir)
-          (is (string= expected-output (->> (str "./cli.exe " args)
+          (is (string= expected-output (->> (str "./cli " args)
                                             (proc/sh {:dir dir})
                                             :out))))))))
 
