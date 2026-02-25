@@ -2,7 +2,8 @@
   (:require [clojure.test :refer [deftest is] :as t]))
 
 ;; Skip exception tests on Windows, not yet supported
-(def windows? cpp/__WIN32)
+(cpp/raw "#ifdef _WIN32\n# define SELF_TEST_WIN 1\n#else\n# define SELF_TEST_WIN 0\n#endif")
+(def windows? (= cpp/SELF_TEST_WIN 1))
 
 (deftest pass-test (is (= 1 1)))
 (deftest fail-test (is (= 1 2)))
