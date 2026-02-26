@@ -131,4 +131,9 @@ jobs:
         shell: msys2 {0}
         run: |
           cd compiler+runtime
-          PATH="$PATH:${{ steps.find.outputs.bb_dir }}:${{ steps.find.outputs.java_dir }}:${{ steps.find.outputs.clojure_dir }}" bin/jank/compiler+runtime/bash_test.clj
+          BB_DIR=$(cygpath -u "${{ steps.find.outputs.bb_dir }}")
+          JAVA_DIR=$(cygpath -u "${{ steps.find.outputs.java_dir }}")
+          CLOJURE_DIR=$(cygpath -u "${{ steps.find.outputs.clojure_dir }}")
+
+          PATH="$PATH:$BB_DIR:$JAVA_DIR:$CLOJURE_DIR" bin/jank/compiler+runtime/bash_test.clj
+
