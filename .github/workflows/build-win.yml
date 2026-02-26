@@ -114,7 +114,6 @@ jobs:
         id: find
         shell: pwsh
         run: |
-          bb --version
           $bb = (Get-Command bb).Path
           $dir = Split-Path $bb
           "bb_dir=$dir" >> $env:GITHUB_OUTPUT
