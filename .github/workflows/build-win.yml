@@ -97,3 +97,42 @@ jobs:
           cd compiler+runtime
           build/jank check-health
           build/jank-test
+
+      - name: Prepare java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '25'
+
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@13.4
+        with:
+          cli: latest
+          bb: latest
+
+      - name: Find clojure tools
+        id: find
+        shell: pwsh
+        run: |
+          $bb = (Get-Command bb).Path
+          $dir = Split-Path $bb
+          "bb_dir=$dir" >> $env:GITHUB_OUTPUT
+
+          $java = (Get-Command java).Path
+          $dir = Split-Path $java
+          "java_dir=$dir" >> $env:GITHUB_OUTPUT
+
+          $clojure = (Get-Command clojure).Path
+          $dir = Split-Path $clojure
+          "clojure_dir=$dir" >> $env:GITHUB_OUTPUT
+
+      - name: bash test
+        shell: msys2 {0}
+        run: |
+          cd compiler+runtime
+          BB_DIR=$(cygpath -u "${{ steps.find.outputs.bb_dir }}")
+          JAVA_DIR=$(cygpath -u "${{ steps.find.outputs.java_dir }}")
+          CLOJURE_DIR=$(cygpath -u "${{ steps.find.outputs.clojure_dir }}")
+
+          PATH="$PATH:$BB_DIR:$JAVA_DIR:$CLOJURE_DIR" bin/jank/compiler+runtime/bash_test.clj
+
