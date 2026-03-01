@@ -30,27 +30,27 @@ namespace jank::error
     lex_unexpected_character,
     internal_lex_failure,
 
-    parse_invalid_unicode,
-    parse_invalid_character,
     parse_unexpected_closing_character,
     parse_unterminated_list,
     parse_unterminated_vector,
     parse_unterminated_map,
     parse_unterminated_set,
+    parse_invalid_reader_conditional,
+    parse_invalid_reader_splice,
+    parse_unsupported_reader_macro,
     parse_odd_entries_in_map,
     parse_duplicate_keys_in_map,
     parse_duplicate_items_in_set,
     parse_invalid_quote,
     parse_invalid_meta_hint_value,
     parse_invalid_meta_hint_target,
-    parse_unsupported_reader_macro,
+    parse_invalid_unicode,
+    parse_invalid_character,
     parse_nested_shorthand_function,
     parse_invalid_shorthand_function,
     parse_invalid_shorthand_function_parameter,
     parse_invalid_reader_var,
     parse_invalid_reader_comment,
-    parse_invalid_reader_conditional,
-    parse_invalid_reader_splice,
     parse_invalid_reader_gensym,
     parse_invalid_reader_symbolic_value,
     parse_invalid_reader_tag_value,
@@ -63,6 +63,7 @@ namespace jank::error
     parse_invalid_reader_deref,
     parse_invalid_ratio,
     parse_invalid_keyword,
+    parse_invalid_data_reader,
     internal_parse_failure,
 
     analyze_invalid_case,
@@ -125,6 +126,8 @@ namespace jank::error
     runtime_unable_to_load_module,
     runtime_invalid_unbox,
     runtime_non_metadatable_value,
+    runtime_invalid_referred_global_symbol,
+    runtime_invalid_referred_global_rename,
     runtime_unsupported_behavior,
     internal_runtime_failure,
 
@@ -226,6 +229,8 @@ namespace jank::error
         return "parse/invalid-ratio";
       case kind::parse_invalid_keyword:
         return "parse/invalid-keyword";
+      case kind::parse_invalid_data_reader:
+        return "parse/invalid-data-reader";
       case kind::internal_parse_failure:
         return "internal/parse-failure";
 
@@ -346,6 +351,10 @@ namespace jank::error
         return "runtime/invalid-unbox";
       case kind::runtime_non_metadatable_value:
         return "runtime/non-metadatable-value";
+      case kind::runtime_invalid_referred_global_symbol:
+        return "runtime/invalid-referred-global-symbol";
+      case kind::runtime_invalid_referred_global_rename:
+        return "runtime/invalid-referred-global-rename";
       case kind::runtime_unsupported_behavior:
         return "runtime/unsupported-behavior";
       case kind::internal_runtime_failure:

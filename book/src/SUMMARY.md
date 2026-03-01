@@ -8,6 +8,7 @@
   * [Installation](getting-started/01-installation.md)
   * [Hello, world!](getting-started/02-hello-world.md)
   * [Hello, Leiningen!](getting-started/03-hello-leiningen.md)
+  * [Hello, nREPL!](getting-started/04-hello-nrepl.md)
 
 <!--
 TODO:
@@ -16,7 +17,6 @@ TODO:
   .jank, .cljc, .cpp files
     All modules need to intern the ns
   nREPL support
-  Casting between types
   AOT compiling programs (and distributing them)
   Printing codegen
   Known issues
@@ -26,13 +26,17 @@ TODO:
 -->
 
 * [Reaching into C++](cpp-interop/index.md)
-  * [Embedding raw C++](cpp-interop/cpp-raw.md)
   * [Bringing in native libraries](cpp-interop/native-libs.md)
   * [Working with native values](cpp-interop/native-values.md)
   * [Working with native types](cpp-interop/native-types.md)
   * [Working with native functions](cpp-interop/native-functions.md)
+  * [Throwing and catching exceptions](cpp-interop/native-exceptions.md)
   * [Casting between native types](cpp-interop/cast.md)
+  * [Embedding raw C++](cpp-interop/cpp-raw.md)
   * [The cpp namespace](cpp-interop/cpp-ns.md)
+
+* [Working with projects](project/index.md)
+  * [AOT compiling projects](project/aot.md)
 
 * [Differences from Clojure](differences-from-clojure.md)
 * [For C++ Developers](for-cpp-developers.md)
