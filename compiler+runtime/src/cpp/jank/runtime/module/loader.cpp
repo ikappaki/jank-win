@@ -864,13 +864,10 @@ namespace jank::runtime::module
   {
     auto ftime = std::filesystem::last_write_time(native_transient_string{ e.path });
 
-    auto sctp =
-        std::chrono::system_clock::now() +
-        (ftime - std::filesystem::file_time_type::clock::now());
+    auto sctp
+      = std::chrono::system_clock::now() + (ftime - std::filesystem::file_time_type::clock::now());
 
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(
-               sctp.time_since_epoch())
-        .count();
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(sctp.time_since_epoch()).count();
   }
 
   jtl::result<loader::find_result, error_ref>
