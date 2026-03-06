@@ -65,7 +65,7 @@ namespace jank::runtime::module
   jtl::immutable_string module_to_path(jtl::immutable_string const &module)
   {
     static jtl::immutable_string const dot{ "\\." };
-    return runtime::munge_and_replace(module, dot, R"([\\/])");
+    return runtime::munge_and_replace(module, dot, "/");
   }
 
   jtl::immutable_string module_to_load_function(jtl::immutable_string const &module)
@@ -860,11 +860,17 @@ namespace jank::runtime::module
     return {};
   }
 
-  static long get_mod_time(file_entry const &e)
+  static std::int64_t get_mod_time(file_entry const &e)
   {
-    return static_cast<long>(std::filesystem::last_write_time(native_transient_string{ e.path })
-                               .time_since_epoch()
-                               .count());
+    auto ftime = std::filesystem::last_write_time(native_transient_string{ e.path });
+
+    auto sctp =
+        std::chrono::system_clock::now() +
+        (ftime - std::filesystem::file_time_type::clock::now());
+
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+               sctp.time_since_epoch())
+        .count();
   }
 
   jtl::result<loader::find_result, error_ref>

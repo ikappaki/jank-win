@@ -92,8 +92,8 @@
                     (proc/sh {:out *out*
                               :err *out*})
                     :exit)))
-      (is (= expected-output (-> output-filename (str args)
-                                 proc/sh :out))))))
+      (is (string= expected-output (-> output-filename (str args)
+                                       proc/sh :out))))))
 
 (deftest aot-cpp-raw-inline
   (let [alias-name "cpp-raw-inline"

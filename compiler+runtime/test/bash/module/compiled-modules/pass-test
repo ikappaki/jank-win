@@ -39,13 +39,13 @@
 (defn jank [command module-name & {:keys [extra-module-path
                                           out
                                           flags]}]
-  (let [args] (concat
-               ["jank" "--module-path"
-                (str (src-dir) (when-not (empty? extra-module-path)
-                                 (str fs/path-separator extra-module-path)))]
-                flags
-                [command module-name]
-                (when out ["-o" out]))]
+  (let [args (concat
+              ["jank" "--module-path"
+               (str (src-dir) (when-not (empty? extra-module-path)
+                                (str fs/path-separator extra-module-path)))]
+              flags
+              [command module-name]
+              (when out ["-o" out]))]
     (proc/sh args)))
 
 (defn create-jar-with-a []

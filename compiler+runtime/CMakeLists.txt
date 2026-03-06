@@ -214,7 +214,7 @@ if(jank_enable_phase_2)
   set(jank_clojure_core_binary_output "${CMAKE_BINARY_DIR}/CMakeFiles/jank_exe_phase_2.dir/core-libs/clojure/core.cpp${CMAKE_CXX_OUTPUT_EXTENSION}")
   list(
     TRANSFORM jank_nrepl_server_outputs
-    REPLACE "\.o$" ".cpp.o"
+    REPLACE "\.o$" ".cpp${CMAKE_CXX_OUTPUT_EXTENSION}"
     OUTPUT_VARIABLE jank_nrepl_server_binary_outputs
   )
   list(
@@ -902,6 +902,7 @@ if(WIN32)
   target_link_libraries(
     jank_exe_phase_1 PUBLIC
     ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
+    ${jank_link_whole_start} libmingwex.a ${jank_link_whole_end}
 
     pthread
     zstd
@@ -957,7 +958,7 @@ else()
     DEPENDS ${CMAKE_BINARY_DIR}/jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} ${jank_clojure_core_output} ${jank_nrepl_server_outputs} ${jank_incremental_pch_flag}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     OUTPUT ${CMAKE_BINARY_DIR}/jank
-    COMMAND ${CMAKE_COMMAND} -E create_symlink jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} jank
+    COMMAND ${CMAKE_COMMAND} -E create_symlink jank-phase-1${CMAKE_EXECUTABLE_SUFFIX} jank${CMAKE_EXECUTABLE_SUFFIX}
   )
   add_custom_target(
     jank_exe_phase_2
@@ -1028,6 +1029,8 @@ if(jank_test)
     target_link_libraries(
       jank_test_exe PUBLIC
       ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
+      # required for mkstemp
+      ${jank_link_whole_start} libmingwex.a ${jank_link_whole_end}
 
       pthread
       zstd

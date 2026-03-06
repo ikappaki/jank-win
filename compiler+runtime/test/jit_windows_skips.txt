@@ -29,3 +29,4 @@ fail-group-duplicates.jank
 fail-non-literal-value.jank
 fail-overlapping-values.jank
 fail-non-symbol.jank
+fail-no-quote.jank
