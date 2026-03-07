@@ -13,3 +13,13 @@
 #include <jank/runtime/core.hpp>
 #include <jank/util/scope_exit.hpp>
 #include <jank/c_api.h>
+
+namespace jank
+{
+  constexpr bool win32 =
+#ifdef _WIN32
+    true;
+#else
+    false;
+#endif
+}

@@ -1,5 +1,22 @@
 (ns jank.nrepl.server.capture)
 
+(defmacro def-unistd
+  "Defines a macro FNAME that expands to a call to the corresponding
+  POSIX `unistd` function, using a portability symbol on Windows."
+  [fname]
+  `(defmacro ~fname [& args#]
+     (let [f# (if cpp/jank.win32
+                (symbol "cpp" (str "folly.portability.unistd." ~(name fname)))
+                (symbol "cpp" ~(name fname))
+                )]
+       `(~f# ~@args#))))
+;; POSIX unistd bindings
+(def-unistd close)
+(def-unistd fileno)
+(def-unistd dup)
+(def-unistd dup2)
+(def-unistd unlink)
+
 (cpp/raw "#include <filesystem>")
 
 (def temp-file-template (str (cpp/getenv #cpp "TEMP") "/" "jank-nrepl-XXXXXX"))
@@ -19,16 +36,16 @@
   Returns a capture handle."
   [fp*]
   (let [fp                  (cpp/unbox cpp/FILE* fp*)
-        fd                  (cpp/folly.portability.unistd.fileno fp)
-        bak-fd              (cpp/folly.portability.unistd.dup fd)
+        fd                  (fileno fp)
+        bak-fd              (dup fd)
         [temp-name temp-fd] (make-temp-file)]
     ;; First flush the stream to ensure any data from before we start capturing
     ;; is written.
     (cpp/fflush fp)
 
     ;; Redirect the stream to a temporary file which we can later read back.
-    (cpp/folly.portability.unistd.dup2 temp-fd fd)
-    (cpp/folly.portability.unistd.close temp-fd)
+    (dup2 temp-fd fd)
+    (close temp-fd)
 
     ;; Return a handle of what we've changed so that we can revert it later.
     {:fp*       fp*
@@ -41,21 +58,21 @@
   stream will remain permanently redirected."
   [{:keys [fp* bak-fd temp-fd]}]
   (let [fp (cpp/unbox cpp/FILE* fp*)
-        fd (cpp/folly.portability.unistd.fileno fp)]
+        fd (fileno fp)]
     ;; Flush any remaining data that we want to be included in the capture.
     (cpp/fflush fp)
 
     ;; Bring it all back to its original state.
-    (cpp/folly.portability.unistd.dup2 bak-fd fd)
-    (cpp/folly.portability.unistd.close bak-fd)
-    (cpp/folly.portability.unistd.close temp-fd)))
+    (dup2 bak-fd fd)
+    (close bak-fd)
+    (close temp-fd)))
 
 (defn- readback
   "Read back the data which was captured by the handle. The data is deleted, so
   this can only be called once."
   [{:keys [temp-name]}]
   (let [s (slurp temp-name)]
-    (cpp/folly.portability.unistd.unlink temp-name)
+    (unlink temp-name)
     s))
 
 (defn with-capture
