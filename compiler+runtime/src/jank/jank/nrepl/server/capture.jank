@@ -25,7 +25,7 @@
   (let [name (cpp/std.string (cpp/cast cpp/std.string temp-file-template))
         fd   (cpp/mkstemp (cpp/.data name))]
     (assert (not= fd -1) "temp file could not be created")
-    (cpp/folly.portability.unistd.close fd)
+    (close fd)
     [name fd]))
 
 (defn- file-size [path]
