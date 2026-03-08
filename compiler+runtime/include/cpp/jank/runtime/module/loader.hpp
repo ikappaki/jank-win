@@ -55,7 +55,7 @@ namespace jank::runtime::module
   {
     object_ref to_runtime_data() const;
     bool exists() const;
-    std::time_t last_modified_at() const;
+    std::filesystem::file_time_type last_modified_at() const;
 
     /* If the file is within a JAR, this will be the path to the JAR. */
     jtl::option<jtl::immutable_string> archive_path;
@@ -132,11 +132,10 @@ namespace jank::runtime::module
   jtl::immutable_string module_to_path(jtl::immutable_string const &module);
   jtl::immutable_string module_to_load_function(jtl::immutable_string const &module);
   jtl::immutable_string
-  nest_module(jtl::immutable_string const &module, jtl::immutable_string const &sub);
-  jtl::immutable_string
   nest_native_ns(jtl::immutable_string const &native_ns, jtl::immutable_string const &end);
-  bool is_nested_module(jtl::immutable_string const &module);
   jtl::immutable_string module_to_native_ns(jtl::immutable_string const &orig_module);
+
+  void verify_binary_version();
 
   /* A core module is one baked into the jank runtime. For example, clojure.core. */
   bool is_core_module(jtl::immutable_string const &module);
@@ -200,6 +199,7 @@ namespace jank::runtime::module
 
     /* This only adds a single path, so it's assumed there's no separator present. */
     void add_path(jtl::immutable_string const &path);
+    void add_load_fn(jtl::immutable_string const &module, jtl::ref<void()> const fn);
 
     object_ref to_runtime_data() const;
 
@@ -207,11 +207,17 @@ namespace jank::runtime::module
     {
       jtl::immutable_string paths;
       /* This maps module strings to entries. Module strings are like fully qualified namespace
-     * names. For example, `clojure.core`, `jank.compiler`, etc. */
+       * names. For example, `clojure.core`, `jank.compiler`, etc. */
       native_unordered_map<jtl::immutable_string, entry> entries;
+      /* The load function for a module can be explicitly overriden, which allows for short
+       * circuiting the load. This is used for baked-in modules like clojure.core and the nREPL
+       * server.
+       *
+       * This map is from module to load function. */
+      native_unordered_map<jtl::immutable_string, jtl::ref<void()>> managed_load_fns;
     };
 
     /*** XXX: Everything here is thread-safe. ***/
-    folly::Synchronized<mutable_state> state;
+    folly::Synchronized<mutable_state, std::recursive_mutex> state;
   };
 }

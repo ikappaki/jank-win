@@ -1,0 +1,48 @@
+(ns jank.nrepl.server.inspect)
+
+(cpp/raw "
+#ifdef _WIN32
+#include <cstdio>
+#else
+#include <iomanip>
+#include <sstream>
+#endif
+
+namespace jank::nrepl::server::inspect
+{
+  inline std::string hash_to_hex_string(unsigned int i)
+  {
+
+#ifdef _WIN32
+    // MSYS2/clang64 JIT workaround: std::format emits 128-bit division helpers
+    // which the JIT cannot resolve:
+    //
+    // JIT session error: Symbols not found: [ __umodti3, __udivti3 ]
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), \"0x%x\", i);
+    return buf;
+#else
+    return std::format(\"0x{:x}\", i);
+#endif
+  }
+}
+")
+
+(defn hash->hex-string [i]
+  (cpp/jank.nrepl.server.inspect.hash_to_hex_string i))
+
+(defn inspect-str
+  "Inspect a value to build a display string for CIDER."
+  [x]
+  (pr-str
+   `("--- Type"
+     (:newline)
+     (:value ~(type x))
+     (:newline) (:newline)
+     "--- Contents"
+     (:newline)
+     (:value ~(pr-str x))
+     (:newline) (:newline)
+     "--- Hash"
+     (:newline)
+     (:value ~(hash->hex-string (hash x))))))
