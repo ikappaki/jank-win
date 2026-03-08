@@ -902,6 +902,7 @@ if(WIN32)
   target_link_libraries(
     jank_exe_phase_1 PUBLIC
     ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
+    # Required at least for mkstemp
     ${jank_link_whole_start} libmingwex.a ${jank_link_whole_end}
 
     pthread
@@ -1029,7 +1030,7 @@ if(jank_test)
     target_link_libraries(
       jank_test_exe PUBLIC
       ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
-      # required for mkstemp
+      # Required at least for mkstemp
       ${jank_link_whole_start} libmingwex.a ${jank_link_whole_end}
 
       pthread
