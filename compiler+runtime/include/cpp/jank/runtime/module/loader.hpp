@@ -55,7 +55,7 @@ namespace jank::runtime::module
   {
     object_ref to_runtime_data() const;
     bool exists() const;
-    std::time_t last_modified_at() const;
+    std::filesystem::file_time_type last_modified_at() const;
 
     /* If the file is within a JAR, this will be the path to the JAR. */
     jtl::option<jtl::immutable_string> archive_path;

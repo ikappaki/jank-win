@@ -544,14 +544,10 @@ namespace jank::runtime::module
     }
   }
 
-  std::time_t file_entry::last_modified_at() const
+  std::filesystem::file_time_type file_entry::last_modified_at() const
   {
     auto const source_path{ archive_path.unwrap_or(path) };
-
-    /* NOLINTNEXTLINE(*-narrowing-conversions) */
-    return std::filesystem::last_write_time(native_transient_string{ source_path })
-      .time_since_epoch()
-      .count();
+    return std::filesystem::last_write_time(native_transient_string{ source_path });
   }
 
   file_view::file_view(file_view &&mf) noexcept
@@ -860,14 +856,9 @@ namespace jank::runtime::module
     return {};
   }
 
-  static std::int64_t get_mod_time(file_entry const &e)
+  static std::filesystem::file_time_type get_mod_time(file_entry const &e)
   {
-    auto ftime = std::filesystem::last_write_time(native_transient_string{ e.path });
-
-    auto sctp
-      = std::chrono::system_clock::now() + (ftime - std::filesystem::file_time_type::clock::now());
-
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(sctp.time_since_epoch()).count();
+    return std::filesystem::last_write_time(native_transient_string{ e.path });
   }
 
   jtl::result<loader::find_result, error_ref>
