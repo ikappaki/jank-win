@@ -264,7 +264,7 @@ jobs:
         with:
           path: |
             ${{ github.workspace }}/compiler+runtime/build/llvm-install
-          key: clang-${{ runner.os }}-${{ hashFiles('${{ github.workspace }}/compiler+runtime/bin/build-clang', 'compiler+runtime/third-party/MINGW-packages/mingw-w64-llvm/**') }}
+          key: clang-${{ runner.os }}-${{ hashFiles('compiler+runtime/bin/build-clang', 'compiler+runtime/third-party/MINGW-packages/mingw-w64-llvm/**') }}
       - name: Cache ccache object files
         if: matrix.analyze == 'off'
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
