@@ -115,7 +115,7 @@ set(
 )
 
 if (WIN32)
-  list(APPEND jank_common_compiler_flags -DGC_NOT_DLL)
+  list(APPEND jank_common_compiler_flags -DGC_NOT_DLL -DWIN32_LEAN_AND_MEAN)
 endif()
 
 set(

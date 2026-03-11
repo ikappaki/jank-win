@@ -19,15 +19,20 @@
        fallback))))
 
 (defn bash-run
-  "Returns a PATH wrapped for execution in Bash on Windows, returns the
-  PATH unchanged on other platforms."
-  [path]
+  "Returns PATH wrapped for execution in Bash on Windows with ARGS passed to -c.
+   Returns PATH unchanged on other platforms."
+  [path & args]
   (if (b.f/windows?)
     (let [bash-exe (b.f/which "bash")]
       (when-not bash-exe
         (throw (ex-info "Unable to find bash." {})))
-      (str bash-exe " -c " (b.f/unixify path)))
-    path))
+      (let [cmd (str (b.f/unixify path)
+                     (when (seq args)
+                       (str " " (clojure.string/join " " args))))]
+        (str bash-exe " -c \"" cmd "\"")))
+    (str path
+         (when (seq args)
+           (str " " (clojure.string/join " " args))))))
 
 (defmacro string=
   "Compare L and R strings ignoring line ending differences."
@@ -79,6 +84,7 @@
   (log "❌ " (apply str args) (str "(" (format-ms time-ms) ")")))
 
 (defn quiet-shell [props cmd]
+  ;;(println :props props :cmd cmd)
   (let [proc @(b.p/process
                (merge {:out :string
                        :err :out}

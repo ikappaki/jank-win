@@ -34,10 +34,15 @@
     (util/quiet-shell {} "sudo mv clang-tidy-cache-wrapper /usr/local/bin")))
 
 (defmulti install-deps
-  (fn [_props]
-    (System/getProperty "os.name")))
+  (fn [_]
+    (let [os (System/getProperty "os.name")]
+      (cond
+        (.startsWith os "Windows") :win
+        (.startsWith os "Linux")   :linux
+        (.startsWith os "Mac")     :mac
+        :else                      :unknown))))
 
-(defmethod install-deps "Linux" [{:keys [validate-formatting?]}]
+(defmethod install-deps :linux [{:keys [validate-formatting?]}]
   (install-common-deps)
   ; TODO: Enable once we're not building Clang/LLVM from source again.
   ;; Install Clang/LLVM.
@@ -53,7 +58,10 @@
   (util/quiet-shell {} "chmod +x linux-install.sh")
   (util/quiet-shell {} "sudo ./linux-install.sh"))
 
-(defmethod install-deps "Mac OS X" [_props]
+(defmethod install-deps :mac [_props]
+  (install-common-deps))
+
+(defmethod install-deps :win [_props]
   (install-common-deps))
 
 (defn -main [{:keys [install-deps? validate-formatting? compiler+runtime
