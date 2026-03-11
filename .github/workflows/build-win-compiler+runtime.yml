@@ -240,6 +240,7 @@ jobs:
           brew install cmake ninja double-conversion pkg-config llvm ccache boost openssl zlib doctest boost clojure/tools/clojure
       - name: Install pacman packages
         if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: |
           pacman -S unzip mingw-w64-clang-x86_64-ccache base-devel curl zip mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc mingw-w64-clang-x86_64-boost
       - name: Prepare java
@@ -300,21 +301,29 @@ jobs:
           ./install_clojure --as-clj
 
       - name: Build and test jank
+        if: runner.os != 'Windows'
         id: jank-build-step
         run: |
           if [[ "${RUNNER_OS}" == "macOS" ]];
           then
             export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
-          elif [[ "${RUNNER_OS}" == "Windows" ]]
-          then
-            JAVA_DIR=$(cygpath -u "${{ steps.find.outputs.java_dir }}")
-            export PATH="$PATH:$JAVA_DIR"
-          fi
           if [[ "${JANK_SANITIZE}" != "none" || "${JANK_COVERAGE}" == "on" ]];
           then
             export JANK_SKIP_AOT_CHECK=1
           fi
           JANK_INSTALL_DEPS=true ./bin/jank/check_everything.clj
+      - name: Build and test jank (MS-Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        id: jank-build-step
+        run: |
+          JAVA_DIR=$(cygpath -u "${{ steps.find.outputs.java_dir }}")
+          if [[ "${JANK_SANITIZE}" != "none" || "${JANK_COVERAGE}" == "on" ]];
+          then
+            export JANK_SKIP_AOT_CHECK=1
+          fi
+          PATH="$PATH:$JAVA_DIR" JANK_INSTALL_DEPS=true ./bin/jank/check_everything.clj
+
       - name: Upload .deb for publishing
         if: github.ref == 'refs/heads/main' && steps.jank-build-step.outputs.deb
         uses: actions/upload-artifact@v4
