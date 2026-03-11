@@ -105,9 +105,9 @@ jobs:
 
       - name: Build Clang/LLVM
         if: steps.clang-cache.outputs.cache-hit != 'true'
-        shell: msys2 {0}
-        env:
-          MSYSTEM: CLANG64
+        shell: msys2 CLANG64
+        # env:
+        #   MSYSTEM: CLANG64
         run: |
           pushd compiler+runtime
             ./bin/build-clang
@@ -303,7 +303,7 @@ jobs:
           JANK_INSTALL_DEPS=true ./bin/jank/check_everything.clj
       - name: Build and test jank (MS-Windows)
         if: runner.os == 'Windows'
-        shell: msys2 {0}
+        shell: msys2 CLANG64
         id: jank-build-step-win
         run: |
           curl -sL -o install-bb https://raw.githubusercontent.com/babashka/babashka/master/install
