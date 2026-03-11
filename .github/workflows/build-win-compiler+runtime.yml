@@ -105,9 +105,9 @@ jobs:
 
       - name: Build Clang/LLVM
         if: steps.clang-cache.outputs.cache-hit != 'true'
-        shell: msys2 CLANG64
-        # env:
-        #   MSYSTEM: CLANG64
+        shell: msys2 {0}
+        env:
+          MSYSTEM: CLANG64
         run: |
           pushd compiler+runtime
             ./bin/build-clang
@@ -241,7 +241,7 @@ jobs:
       - uses: msys2/setup-msys2@v2
         if: runner.os == 'Windows'
         with:
-          msystem: ${{ matrix.msystem }}
+          MSYSTEM: CLANG64
           install: unzip mingw-w64-clang-x86_64-ccache base-devel curl zip mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc mingw-w64-clang-x86_64-boost
           update: true
       - name: Prepare java
@@ -303,7 +303,9 @@ jobs:
           JANK_INSTALL_DEPS=true ./bin/jank/check_everything.clj
       - name: Build and test jank (MS-Windows)
         if: runner.os == 'Windows'
-        shell: msys2 CLANG64
+        shell: msys2 {0}
+        env:
+          msystem: CLANG64
         id: jank-build-step-win
         run: |
           curl -sL -o install-bb https://raw.githubusercontent.com/babashka/babashka/master/install
