@@ -238,11 +238,12 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install cmake ninja double-conversion pkg-config llvm ccache boost openssl zlib doctest boost clojure/tools/clojure
-      - name: Install pacman packages
+      - uses: msys2/setup-msys2@v2
         if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          pacman -S unzip mingw-w64-clang-x86_64-ccache base-devel curl zip mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc mingw-w64-clang-x86_64-boost
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: unzip mingw-w64-clang-x86_64-ccache base-devel curl zip mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-dlfcn mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc mingw-w64-clang-x86_64-boost
+          update: true
       - name: Prepare java
         if: runner.os == 'Windows'
         uses: actions/setup-java@v5
@@ -284,26 +285,14 @@ jobs:
           swap-space-path: /swapfile
           swap-size-gb: 8
           remove-existing-swap-files: true
-      - name: Install build utils
-        if: runner.os != 'Windows'
-        run: |
-          curl -sL -o install-bb https://raw.githubusercontent.com/babashka/babashka/master/install
-          chmod +x install-bb
-          sudo ./install-bb
-      - name: Install build utils (MS-Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          curl -sL -o install-bb https://raw.githubusercontent.com/babashka/babashka/master/install
-          ./install-bb
-
-          curl -sL https://raw.githubusercontent.com/borkdude/deps.clj/master/install > install_clojure
-          ./install_clojure --as-clj
-
       - name: Build and test jank
         if: runner.os != 'Windows'
         id: jank-build-step
         run: |
+          curl -sL -o install-bb https://raw.githubusercontent.com/babashka/babashka/master/install
+          chmod +x install-bb
+          sudo ./install-bb
+
           if [[ "${RUNNER_OS}" == "macOS" ]];
           then
             export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
@@ -317,13 +306,24 @@ jobs:
         shell: msys2 {0}
         id: jank-build-step-win
         run: |
+          curl -sL -o install-bb https://raw.githubusercontent.com/babashka/babashka/master/install
+          ./install-bb
+
+          curl -sL https://raw.githubusercontent.com/borkdude/deps.clj/master/install > install_clojure
+          ./install_clojure --as-clj
+
           JAVA_DIR=$(cygpath -u "${{ steps.find.outputs.java_dir }}")
+
+          pushd compiler+runtime
+            ./bin/build-clang -i
+            clang++ --version
+          poopd
+
           if [[ "${JANK_SANITIZE}" != "none" || "${JANK_COVERAGE}" == "on" ]];
           then
             export JANK_SKIP_AOT_CHECK=1
           fi
           PATH="$PATH:$JAVA_DIR" JANK_INSTALL_DEPS=true ./bin/jank/check_everything.clj
-
       - name: Upload .deb for publishing
         if: github.ref == 'refs/heads/main' && steps.jank-build-step.outputs.deb
         uses: actions/upload-artifact@v4
