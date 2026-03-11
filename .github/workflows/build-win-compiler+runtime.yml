@@ -319,7 +319,7 @@ jobs:
           pushd compiler+runtime
             ./bin/build-clang -i
             clang++ --version
-          poopd
+          popd
 
           if [[ "${JANK_SANITIZE}" != "none" || "${JANK_COVERAGE}" == "on" ]];
           then
