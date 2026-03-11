@@ -315,7 +315,7 @@ jobs:
       - name: Build and test jank (MS-Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
-        id: jank-build-step
+        id: jank-build-step-win
         run: |
           JAVA_DIR=$(cygpath -u "${{ steps.find.outputs.java_dir }}")
           if [[ "${JANK_SANITIZE}" != "none" || "${JANK_COVERAGE}" == "on" ]];
