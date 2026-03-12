@@ -10,14 +10,17 @@
 (def compiler+runtime-dir (str (b.f/parent *file*) "/../../.."))
 
 (def cli-spec
-  {:list {:coerce :boolean}})
+  {:list {:alias :l
+          :coerce :boolean}
+   :help {:alias :h
+          :coerce :boolean}})
 
 (defn usage []
   (println "Usage: bb bash-test.bb [--list] [--help] [filters...]
 
 Options:
-  --list    List matching tests and exit
-  --help    Show this help
+  -l, --list    List matching tests and exit
+  -h, --help    Show this help
 
 Filters:
   Positional arguments filter tests by substring match in the test path."))
@@ -45,6 +48,7 @@ Filters:
         (usage)
         (System/exit 0))
       (when (:list opts)
+        (println "Available tests:\n")
         (doseq [t test-files]
           (println (str (b.f/relativize bash-test-dir (b.f/parent t)))))
         (System/exit 0))
