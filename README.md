@@ -111,7 +111,6 @@ curl -sL -o install-bb https://raw.githubusercontent.com/babashka/babashka/maste
 ./install-bb
 curl -sL https://raw.githubusercontent.com/borkdude/deps.clj/master/install > install_clojure
 ./install_clojure --as-clj
-"$PATH:/path-to-java-home"
 
 cd compiler+runtime
 "$PATH:/path-to-java-home" bin/jank/compiler+runtime/bash_test.clj
