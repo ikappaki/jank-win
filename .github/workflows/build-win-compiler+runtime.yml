@@ -1,14 +1,14 @@
 name: Build compiler+runtime (MS-Windows)
 
 on:
-  # pull_request:
-  #   paths:
-  #     - 'compiler\+runtime/**'
-  # push:
-  #   branches:
-  #     - main
-  #   paths:
-  #     - 'compiler\+runtime/**'
+  pull_request:
+    paths:
+      - 'compiler\+runtime/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'compiler\+runtime/**'
   workflow_dispatch:
 
 permissions:
@@ -66,8 +66,9 @@ jobs:
           ## Release
           - name: Windows - release
             os: windows-2022
-            build_type: Release
+            build_type: Debug
             sanitize: none
+            analyze: on
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.name }}
     env:

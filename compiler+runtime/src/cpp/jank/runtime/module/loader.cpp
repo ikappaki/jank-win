@@ -639,8 +639,8 @@ namespace jank::runtime::module
     if(fd)
     {
 #ifdef _WIN32
-      CloseHandle(fd.value().hMapping);
-      CloseHandle(fd.value().hFile);
+      CloseHandle(fd->hMapping);
+      CloseHandle(fd->hFile);
 #else
       ::close(*fd);
 #endif
