@@ -155,7 +155,7 @@ namespace jank::util
     return std::filesystem::canonical("/proc/self/exe").string();
 #elif defined(_WIN32)
     char path[MAX_PATH];
-    DWORD size = GetModuleFileNameA(NULL, path, MAX_PATH);
+    const DWORD size = GetModuleFileNameA(nullptr, path, MAX_PATH);
 
     if(size == 0)
     {

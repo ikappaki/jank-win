@@ -10,9 +10,11 @@
 (deftest thrown-without-throw-test (is (thrown? 1)))
 ;;TODO waiting on regex support
 ;(deftest thrown-with-msg-test (is (thrown-with-msg? #"a" (throw (ex-info "a" {})))))
-(when-not windows?
-  (deftest thrown-test (is (thrown? (throw (ex-info "a" {})))))
-  (deftest error-test (is (throw (ex-info "" {})))))
+(if windows?
+  (println :skipping 'clojure-test.self-test.thrown-test 'clojure-test.self-test.error-test)
+  (do
+    (deftest thrown-test (is (thrown? (throw (ex-info "a" {})))))
+    (deftest error-test (is (throw (ex-info "" {}))))))
 
 (defn -main []
   (println '(t/run-test pass-test))

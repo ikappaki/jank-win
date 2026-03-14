@@ -875,6 +875,7 @@ namespace jank::codegen
 
       return build_arity_flags(variadic_arity->fn_ctx->param_count - 1, true, variadic_ambiguous);
     }
+    // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
     return build_arity_flags(highest_fixed_arity->fn_ctx->param_count, false, false);
   }
 
