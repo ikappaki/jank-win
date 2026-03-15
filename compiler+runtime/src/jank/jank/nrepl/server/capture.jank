@@ -1,7 +1,8 @@
 (ns jank.nrepl.server.capture
-  (:require [jank.nrepl.server.util :refer [close fileno dup dup2 unlink]]))
+  (:require [jank.nrepl.server.util :refer [close dup dup2 unlink]]))
 
-(cpp/raw "#include <filesystem>")
+(cpp/raw "#include <cstdio>
+#include <filesystem>")
 
 (def temp-file-template (str (cpp/getenv #cpp "TEMP") "/" "jank-nrepl-XXXXXX"))
 
@@ -20,7 +21,7 @@
   Returns a capture handle."
   [fp*]
   (let [fp                  (cpp/unbox (:* cpp/FILE) fp*)
-        fd                  (fileno fp)
+        fd                  (cpp/fileno fp)
         bak-fd              (dup fd)
         [temp-name temp-fd] (make-temp-file)]
     ;; First flush the stream to ensure any data from before we start capturing
@@ -42,7 +43,7 @@
   stream will remain permanently redirected."
   [{:keys [fp* bak-fd temp-fd]}]
   (let [fp (cpp/unbox (:* cpp/FILE) fp*)
-        fd (fileno fp)]
+        fd (cpp/fileno fp)]
     ;; Flush any remaining data that we want to be included in the capture.
     (cpp/fflush fp)
 

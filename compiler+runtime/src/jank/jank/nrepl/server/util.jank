@@ -22,7 +22,6 @@
        `(~f# ~@args#))))
 ;; Create cross platform POSIX unistd bindings
 (def-unistd close)
-(def-unistd fileno)
 (def-unistd dup)
 (def-unistd dup2)
 (def-unistd unlink)
