@@ -111,9 +111,17 @@ test which will fail.
 $ lein test
 ```
 
-> [!NOTE]
-> This is not yet supported in jank. Accomplishing this requires finding
-> all test namespaces and running them using `clojure.test`.
+If tests exist in directories other than `test/`, you can use the `:test`
+profile to point Leiningen to them. Leiningen will find all jank source files
+within those directories, recursively, and ensure their tests run.
+
+```clojure
+(defproject hello_lein "0.1-SNAPSHOT"
+  ;; ...
+  :profiles {;; ...
+             :test {:test-paths ["src/test" "other/test"]}})
+
+```
 
 ## Compiling a Leiningen project
 It's possible to AOT (ahead of time) compile our whole Leiningen project to an

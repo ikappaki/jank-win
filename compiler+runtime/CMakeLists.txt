@@ -212,6 +212,7 @@ if(jank_enable_phase_2)
   set(jank_core_lib_output_target --output-target cpp)
   set(jank_clojure_core_output "${CMAKE_BINARY_DIR}/core-libs/clojure/core.cpp")
   set(jank_clojure_core_binary_output "${CMAKE_BINARY_DIR}/CMakeFiles/jank_exe_phase_2.dir/core-libs/clojure/core.cpp${CMAKE_CXX_OUTPUT_EXTENSION}")
+
   list(
     TRANSFORM jank_nrepl_server_outputs
     REPLACE "\.o$" ".cpp${CMAKE_CXX_OUTPUT_EXTENSION}"
@@ -567,6 +568,7 @@ add_library(
   src/cpp/jank/runtime/core/math.cpp
   src/cpp/jank/runtime/core/meta.cpp
   src/cpp/jank/runtime/core/call.cpp
+  src/cpp/jank/runtime/sequence_range.cpp
   src/cpp/jank/runtime/perf.cpp
   src/cpp/jank/runtime/module/loader.cpp
   src/cpp/jank/runtime/object.cpp
@@ -629,6 +631,7 @@ add_library(
   src/cpp/jank/runtime/obj/delay.cpp
   src/cpp/jank/runtime/obj/future.cpp
   src/cpp/jank/runtime/obj/reduced.cpp
+  src/cpp/jank/runtime/obj/reader_conditional.cpp
   src/cpp/jank/runtime/behavior/metadatable.cpp
   src/cpp/jank/analyze/processor.cpp
   src/cpp/jank/analyze/expression.cpp
