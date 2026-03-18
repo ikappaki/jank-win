@@ -837,6 +837,7 @@ if(WIN32)
     third-party/folly/folly/net/NetOps.cpp
     third-party/folly/folly/net/detail/SocketFileDescriptorMap.cpp
     third-party/folly/folly/portability/Sockets.cpp
+    third-party/folly/folly/portability/SysResource.cpp
     third-party/folly/folly/portability/Unistd.cpp
   )
 endif()
