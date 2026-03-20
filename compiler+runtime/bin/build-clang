@@ -17,11 +17,12 @@ set -e
 
 install=0
 update=0
+mingw_packages_clone_flag=0
 
-while getopts ":hiuj:" opt; do
+while getopts ":himuj:" opt; do
   case "${opt}" in
     h)
-      echo "Usage ${0} [-j N] [-i] [-u] [srcdir]"
+      echo "Usage ${0} [-j N] [-i] [-m] [-u] [srcdir]"
       exit 0
       ;;
     i)
@@ -29,6 +30,9 @@ while getopts ":hiuj:" opt; do
       ;;
     j)
       make_j="${OPTARG}"
+      ;;
+    m)
+      mingw_packages_clone_flag=1
       ;;
     u)
       update=1
@@ -63,7 +67,10 @@ llvm_dest_dir="${srcdir}/llvm-install"
 llvm_build_dir="${srcdir}/llvm-build"
 if [[ -n "${MSYSTEM:-}" ]]; then
     llvm_src_dir="${llvm_build_dir}/src"
-    llvm_mingw_pkg_dir="${here}/../third-party/MINGW-packages/mingw-w64-llvm"
+    llvm_mingw_pkg_url="https://github.com/ikappaki/MINGW-packages.git"
+    llvm_mingw_pkg_branch="master-jank-win"
+    llvm_mingw_pkg_commit="f36fd8a298c9e0f9744c9d07a5dbb62c8966c862"
+    llvm_mingw_pkg_dir="${srcdir}/MINGW-packages"
 else
     llvm_src_dir="${srcdir}/llvm"
 fi
@@ -77,6 +84,18 @@ if [[ ${install} == 1 ]]; then
        exit 1
    fi
 fi
+
+function mingw_packages_clone()
+{
+   echo "Cloning MINGW-packages repo to ${llvm_mingw_pkg_dir}..."
+   rm -fr ${llvm_mingw_pkg_dir}
+   git clone --depth 1 --branch ${llvm_mingw_pkg_branch} ${llvm_mingw_pkg_url} ${llvm_mingw_pkg_dir}
+   cd ${llvm_mingw_pkg_dir}
+     git checkout ${llvm_mingw_pkg_commit}
+     cp ${llvm_mingw_pkg_dir}/mingw-w64-llvm/* ${llvm_build_dir}
+   cd -
+}
+[[ "${mingw_packages_clone_flag}" == 1 ]] && { mingw_packages_clone; exit 0; }
 
 function prepare()
 {
@@ -101,7 +120,8 @@ function prepare()
 
   if [[ -n "${MSYSTEM:-}" ]]; then
       pacman --noconfirm -S base-devel git
-      cp ${llvm_mingw_pkg_dir}/* ${llvm_build_dir}
+      mingw_packages_clone
+      cp ${llvm_mingw_pkg_dir}/mingw-w64-llvm/* ${llvm_build_dir}
       llvm_git_hash=$(git -C ${llvm_src_dir} rev-parse --short HEAD)
       # so that the llvm packages include the hash in their names
       sed -i "s/^pkgrel=0\.jank$/pkgrel=0.jank_${llvm_git_hash}/" ${llvm_build_dir}/PKGBUILD
@@ -140,7 +160,7 @@ function build()
 function build_mingw()
 {
     cd ${llvm_build_dir}
-    makepkg-mingw -sLf --skipchecksums --skippgpcheck --nocheck
+    makepkg-mingw -esLf --skipchecksums --skippgpcheck --nocheck
     rm -fr ${llvm_dest_dir}
     mkdir -p ${llvm_dest_dir}
     mv ${llvm_build_dir}/*.tar.zst ${llvm_dest_dir}
