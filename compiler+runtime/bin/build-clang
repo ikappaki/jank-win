@@ -92,6 +92,8 @@ function mingw_packages_clone()
    git clone --depth 1 --branch ${llvm_mingw_pkg_branch} ${llvm_mingw_pkg_url} ${llvm_mingw_pkg_dir}
    cd ${llvm_mingw_pkg_dir}
      git checkout ${llvm_mingw_pkg_commit}
+     ll -al
+     mkdir -p ${llvm_build_dir}
      cp mingw-w64-llvm/* ${llvm_build_dir}
    cd -
 }
