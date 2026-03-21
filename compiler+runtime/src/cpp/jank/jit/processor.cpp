@@ -45,7 +45,7 @@ namespace jank::jit
   }
 #elif defined(_WIN32)
   {
-    return util::format("lib{}.dll", lib);
+    return util::format("{}.dll", lib);
   }
 #endif
 
