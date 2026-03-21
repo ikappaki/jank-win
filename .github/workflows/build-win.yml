@@ -16,7 +16,7 @@ jobs:
       - uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64
-          install: base-devel git mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-ninja mingw-w64-clang-x86_64-pkgconf mingw-w64-clang-x86_64-libunwind mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-z3 mingw-w64-clang-x86_64-python mingw-w64-clang-x86_64-compiler-rt mingw-w64-clang-x86_64-libc++
+          install: git
       - name: Checkout MINGW-packages
         shell: msys2 {0}
         env:
@@ -39,6 +39,14 @@ jobs:
       #     msystem: CLANG64
       #     install: base-devel git mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-ninja mingw-w64-clang-x86_64-pkgconf mingw-w64-clang-x86_64-libunwind mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-z3 mingw-w64-clang-x86_64-python mingw-w64-clang-x86_64-compiler-rt mingw-w64-clang-x86_64-libc++
       #     update: true
+
+      - name: Install required packages
+        if: steps.clang-cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        env:
+          MSYSTEM: CLANG64
+        run: |
+          pacman -S base-devel mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-ninja mingw-w64-clang-x86_64-pkgconf mingw-w64-clang-x86_64-libunwind mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-z3 mingw-w64-clang-x86_64-python mingw-w64-clang-x86_64-compiler-rt mingw-w64-clang-x86_64-libc++
 
       - name: Build Clang/LLVM
         if: steps.clang-cache.outputs.cache-hit != 'true'
@@ -87,7 +95,7 @@ jobs:
         with:
           path: |
             ${{ github.workspace }}/compiler+runtime/build/llvm-install
-          key: clang-${{ runner.os }}-${{ hashFiles('compiler+runtime/bin/build-clang', 'compiler+runtime/third-party/MINGW-packages/mingw-w64-llvm/**') }}
+          key: clang-${{ runner.os }}-${{ hashFiles('compiler+runtime/bin/build-clang', 'compiler+runtime/build/MINGW-packages/mingw-w64-llvm/**') }}
 
       - name: install jank clang64 compiler
         shell: msys2 {0}

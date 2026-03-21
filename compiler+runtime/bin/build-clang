@@ -70,7 +70,7 @@ if [[ -n "${MSYSTEM:-}" ]]; then
     llvm_mingw_pkg_url="https://github.com/ikappaki/MINGW-packages.git"
     llvm_mingw_pkg_branch="master-jank-win"
     llvm_mingw_pkg_commit="f36fd8a298c9e0f9744c9d07a5dbb62c8966c862"
-    llvm_mingw_pkg_dir="${srcdir}/MINGW-packages"
+    llvm_mingw_pkg_dir="${build_dir}/MINGW-packages"
 else
     llvm_src_dir="${srcdir}/llvm"
 fi
@@ -87,15 +87,12 @@ fi
 
 function mingw_packages_clone()
 {
-   echo "Cloning MINGW-packages repo to ${llvm_mingw_pkg_dir}..."
-   rm -fr ${llvm_mingw_pkg_dir}
-   git clone --depth 1 --branch ${llvm_mingw_pkg_branch} ${llvm_mingw_pkg_url} ${llvm_mingw_pkg_dir}
-   cd ${llvm_mingw_pkg_dir}
-     git checkout ${llvm_mingw_pkg_commit}
-     ls -al
-     mkdir -p ${llvm_build_dir}
-     cp mingw-w64-llvm/* ${llvm_build_dir}
-   cd -
+  echo "Cloning MINGW-packages repo to ${llvm_mingw_pkg_dir}..."
+  rm -fr ${llvm_mingw_pkg_dir}
+  git clone --depth 1 --branch ${llvm_mingw_pkg_branch} ${llvm_mingw_pkg_url} ${llvm_mingw_pkg_dir}
+  cd ${llvm_mingw_pkg_dir}
+    git checkout ${llvm_mingw_pkg_commit}
+  cd -
 }
 [[ "${mingw_packages_clone_flag}" == 1 ]] && { mingw_packages_clone; exit 0; }
 
