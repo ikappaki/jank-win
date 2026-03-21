@@ -90,6 +90,15 @@ jobs:
           install: base-devel curl zip mingw-w64-clang-x86_64-git-lfs mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-libffi mingw-w64-clang-x86_64-doctest mingw-w64-clang-x86_64-libzip mingw-w64-clang-x86_64-gc mingw-w64-clang-x86_64-boost
           update: true
 
+      - name: Checkout MINGW-packages
+        shell: msys2 {0}
+        env:
+          MSYSTEM: CLANG64
+        run: |
+          pushd compiler+runtime
+            ./bin/build-clang -m
+          popd
+
       - name: Cache Clang/LLVM
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
         with:
