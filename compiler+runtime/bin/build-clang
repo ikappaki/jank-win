@@ -17,12 +17,11 @@ set -e
 
 install=0
 update=0
-mingw_packages_clone_flag=0
 
-while getopts ":himuj:" opt; do
+while getopts ":hiuj:" opt; do
   case "${opt}" in
     h)
-      echo "Usage ${0} [-j N] [-i] [-m] [-u] [srcdir]"
+      echo "Usage ${0} [-j N] [-i] [-u] [srcdir]"
       exit 0
       ;;
     i)
@@ -30,9 +29,6 @@ while getopts ":himuj:" opt; do
       ;;
     j)
       make_j="${OPTARG}"
-      ;;
-    m)
-      mingw_packages_clone_flag=1
       ;;
     u)
       update=1
@@ -85,17 +81,6 @@ if [[ ${install} == 1 ]]; then
    fi
 fi
 
-function mingw_packages_clone()
-{
-  echo "Cloning MINGW-packages repo to ${llvm_mingw_pkg_dir}..."
-  rm -fr ${llvm_mingw_pkg_dir}
-  git clone --depth 1 --branch ${llvm_mingw_pkg_branch} ${llvm_mingw_pkg_url} ${llvm_mingw_pkg_dir}
-  cd ${llvm_mingw_pkg_dir}
-    git checkout ${llvm_mingw_pkg_commit}
-  cd -
-}
-[[ "${mingw_packages_clone_flag}" == 1 ]] && { mingw_packages_clone; exit 0; }
-
 function prepare()
 {
   if [[ ! -d "${llvm_src_dir}" ]];
@@ -119,7 +104,15 @@ function prepare()
 
   if [[ -n "${MSYSTEM:-}" ]]; then
       pacman --noconfirm -S base-devel git
-      mingw_packages_clone
+
+      echo "Cloning MINGW-packages repo to ${llvm_mingw_pkg_dir}..."
+      rm -fr ${llvm_mingw_pkg_dir}
+      git clone --depth 1 --branch ${llvm_mingw_pkg_branch} ${llvm_mingw_pkg_url} ${llvm_mingw_pkg_dir}
+      cd ${llvm_mingw_pkg_dir}
+        git checkout ${llvm_mingw_pkg_commit}
+      cd -
+
+      # Copy package files from the cloned repo into the build directory
       cp ${llvm_mingw_pkg_dir}/mingw-w64-llvm/* ${llvm_build_dir}
       llvm_git_hash=$(git -C ${llvm_src_dir} rev-parse --short HEAD)
       # so that the llvm packages include the hash in their names

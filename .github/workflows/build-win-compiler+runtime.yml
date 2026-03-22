@@ -54,7 +54,7 @@ jobs:
           pushd compiler+runtime
             ./bin/build-clang
           popd
-          dir ${{ github.workspace }}/compiler+runtime/build/llvm-install
+          ls -al compiler+runtime/build/llvm-install
 
   build-jank:
     needs:
