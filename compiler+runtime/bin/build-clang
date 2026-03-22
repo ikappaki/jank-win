@@ -62,11 +62,19 @@ llvm_branch="jank"
 llvm_dest_dir="${srcdir}/llvm-install"
 llvm_build_dir="${srcdir}/llvm-build"
 if [[ -n "${MSYSTEM:-}" ]]; then
-    llvm_src_dir="${llvm_build_dir}/src"
+    # Building LLVM on MSYS2 requires a pacman package definition.  a
+    # patched version of MINGW-packages/mingw-w64-llvm is used, which
+    # is maintain separately.
+    llvm_mingw_pkg_gen=1  # Increment this whenever the LLVM version is updated
     llvm_mingw_pkg_url="https://github.com/ikappaki/MINGW-packages.git"
     llvm_mingw_pkg_branch="master-jank-win"
     llvm_mingw_pkg_commit="f36fd8a298c9e0f9744c9d07a5dbb62c8966c862"
-    llvm_mingw_pkg_dir="${build_dir}/MINGW-packages"
+    llvm_mingw_pkg_repo_dir="${build_dir}/MINGW-packages"
+    # The package definition  copied into ${llvm_build_dir} and
+    # expects the LLVM source tree to be available at
+    # ${llvm_build_dir}/src
+    llvm_mingw_pkg_build_dir="${llvm_build_dir}"
+    llvm_src_dir="${llvm_mingw_pkg_build_dir}/src"
 else
     llvm_src_dir="${srcdir}/llvm"
 fi
@@ -105,18 +113,17 @@ function prepare()
   if [[ -n "${MSYSTEM:-}" ]]; then
       pacman --noconfirm -S base-devel git
 
-      echo "Cloning MINGW-packages repo to ${llvm_mingw_pkg_dir}..."
-      rm -fr ${llvm_mingw_pkg_dir}
-      git clone --depth 1 --branch ${llvm_mingw_pkg_branch} ${llvm_mingw_pkg_url} ${llvm_mingw_pkg_dir}
-      cd ${llvm_mingw_pkg_dir}
+      echo "Cloning MINGW-packages repo to ${llvm_mingw_pkg_repo_dir}..."
+      rm -fr ${llvm_mingw_pkg_repo_dir}
+      git clone --depth 1 --branch ${llvm_mingw_pkg_branch} ${llvm_mingw_pkg_url} ${llvm_mingw_pkg_repo_dir}
+      cd ${llvm_mingw_pkg_repo_dir}
         git checkout ${llvm_mingw_pkg_commit}
       cd -
+      cp ${llvm_mingw_pkg_repo_dir}/mingw-w64-llvm/* ${llvm_mingw_pkg_build_dir}
 
-      # Copy package files from the cloned repo into the build directory
-      cp ${llvm_mingw_pkg_dir}/mingw-w64-llvm/* ${llvm_build_dir}
       llvm_git_hash=$(git -C ${llvm_src_dir} rev-parse --short HEAD)
       # so that the llvm packages include the hash in their names
-      sed -i "s/^pkgrel=0\.jank$/pkgrel=0.jank_${llvm_git_hash}/" ${llvm_build_dir}/PKGBUILD
+      sed -i "s/^pkgrel=0\.jank$/pkgrel=${llvm_mingw_pkg_gen}.jank_${llvm_git_hash}/" ${llvm_mingw_pkg_build_dir}/PKGBUILD
   fi
 }
 
@@ -152,7 +159,7 @@ function build()
 function build_mingw()
 {
     cd ${llvm_build_dir}
-    makepkg-mingw -esLf --skipchecksums --skippgpcheck --nocheck
+    makepkg-mingw -sLf --nocheck
     rm -fr ${llvm_dest_dir}
     mkdir -p ${llvm_dest_dir}
     mv ${llvm_build_dir}/*.tar.zst ${llvm_dest_dir}
