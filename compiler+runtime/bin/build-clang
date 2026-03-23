@@ -68,7 +68,7 @@ if [[ -n "${MSYSTEM:-}" ]]; then
     llvm_mingw_pkg_gen=1  # Increment this whenever the LLVM version is updated
     llvm_mingw_pkg_url="https://github.com/ikappaki/MINGW-packages.git"
     llvm_mingw_pkg_branch="master-jank-win"
-    llvm_mingw_pkg_commit="f36fd8a298c9e0f9744c9d07a5dbb62c8966c862"
+    llvm_mingw_pkg_commit="c9209b9237df76dce7c7e5472cf1ba6316d95280"
     llvm_mingw_pkg_repo_dir="${build_dir}/MINGW-packages"
     # The package definition  copied into ${llvm_build_dir} and
     # expects the LLVM source tree to be available at
