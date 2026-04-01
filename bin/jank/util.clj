@@ -37,11 +37,11 @@
           (recur rem-ms (rest units) (if val (conj result val) result)))))))
 
 (defn log-boundary [title]
-  (println "\n----------------" title "----------------")
+  (println "\n────────────────" title "────────────────")
   (summary/boundary title))
 
 (defn log-step [title]
-  (println "\n----" title "----")
+  (println "\n────" title "────")
   (summary/step title))
 
 (defn log [& args]
@@ -88,7 +88,7 @@
   and producing a summary.  Returns the process on success.  On
   failure, prints failed output, and exits the program with code 1."
   [props cmd]
-  (println :props props :cmd cmd)
+  ;; (println :props props :cmd cmd)
   (let [cmd (command-make-portable cmd)
         proc @(b.p/process
                (merge {:out :string

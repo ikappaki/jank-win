@@ -451,19 +451,6 @@ set(jank_lib_standalone_deps
   clangCppInterOp
 )
 
-if(WIN32)
-add_custom_command(
-  DEPENDS ${CMAKE_SOURCE_DIR}/third-party/libchkstk/libchkstk.S
-  OUTPUT ${CMAKE_BINARY_DIR}/libchkstk.a
-  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  COMMAND ${CMAKE_SOURCE_DIR}/third-party/libchkstk/build.bat
-)
-add_custom_target(libchkstk
-  DEPENDS ${CMAKE_BINARY_DIR}/libchkstk.a
-)
-list(APPEND jank_lib_standalone_deps libchkstk)
-endif()
-
 # jank compiles in two phases. The first phase builds the compiler+runtime into a binary
 # called jank-phase-1. We then we this compiler to build the core libs (like clojure.core)
 # into cpp files. We then compile those and link them into a new binary which is just
@@ -905,7 +892,7 @@ target_link_libraries(
 if(WIN32)
   target_link_libraries(
     jank_exe_phase_1 PUBLIC
-    ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
+    ${jank_link_whole_start} libclang_rt.builtins-x86_64.a ${jank_link_whole_end}
     # Required at least for mkstemp
     ${jank_link_whole_start} libmingwex.a ${jank_link_whole_end}
 
@@ -1033,7 +1020,7 @@ if(jank_test)
   if(WIN32)
     target_link_libraries(
       jank_test_exe PUBLIC
-      ${jank_link_whole_start} ${CMAKE_BINARY_DIR}/libchkstk.a ${jank_link_whole_end}
+      ${jank_link_whole_start} libclang_rt.builtins-x86_64.a ${jank_link_whole_end}
       # Required at least for mkstemp
       ${jank_link_whole_start} libmingwex.a ${jank_link_whole_end}
 

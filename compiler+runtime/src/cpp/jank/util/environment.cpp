@@ -163,7 +163,7 @@ namespace jank::util
     {
       return {};
     }
-    return {path, size};
+    return { path, size };
 #else
     static_assert(false, "Unsupported platform");
 #endif
