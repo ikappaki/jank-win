@@ -1,4 +1,6 @@
 #ifdef __MINGW64__
+  // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+  #define WIN32_LEAN_AND_MEAN 1
   #include <windows.h>
 #else
   #include <sys/mman.h>
@@ -35,11 +37,6 @@
 
 namespace jank::runtime::module
 {
-#ifdef _WIN32
-  constexpr char PATH_SEP = ';';
-#else
-  constexpr char PATH_SEP = ':';
-#endif
 
   using zip_ptr = std::unique_ptr<zip_t, decltype(&zip_close)>;
   using zip_entry_ptr = std::unique_ptr<zip_t, decltype(&zip_entry_close)>;
@@ -491,13 +488,14 @@ namespace jank::runtime::module
     native_transient_string paths{ util::cli::opts.module_path };
 
     /* These paths are used by an installed jank. */
-    paths += util::format("{}{}", PATH_SEP, binary_cache_dir);
-    paths += util::format("{}{}", PATH_SEP, (resource_dir / "src/jank").string());
+    paths += util::format("{}{}", module_separator, binary_cache_dir);
+    paths += util::format("{}{}", module_separator, (resource_dir / "src/jank").string());
 
     /* These paths below are only used during development. */
-    paths += util::format("{}{}", PATH_SEP, (jank_path / "core-libs").string());
-    paths += util::format("{}{}", PATH_SEP, (jank_path / binary_cache_dir.c_str()).string());
-    paths += util::format("{}{}", PATH_SEP, (jank_path / "../src/jank").string());
+    paths += util::format("{}{}", module_separator, (jank_path / "core-libs").string());
+    paths
+      += util::format("{}{}", module_separator, (jank_path / binary_cache_dir.c_str()).string());
+    paths += util::format("{}{}", module_separator, (jank_path / "../src/jank").string());
 
     auto const locked_state{ state.lock() };
     locked_state->paths = paths;
@@ -629,7 +627,7 @@ namespace jank::runtime::module
     if(head != nullptr)
     /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast): I want const everywhere else. */
     {
-#ifdef _WIN32
+#ifdef JANK_WINDOWS_LIKE
       UnmapViewOfFile(head);
 #else
       munmap(reinterpret_cast<void *>(const_cast<char *>(head)), len);
@@ -638,7 +636,7 @@ namespace jank::runtime::module
     }
     if(fd)
     {
-#ifdef _WIN32
+#ifdef JANK_WINDOWS_LIKE
       CloseHandle(fd->hMapping);
       CloseHandle(fd->hFile);
 #else
@@ -690,28 +688,28 @@ namespace jank::runtime::module
       return error::runtime_unable_to_open_file(util::format("File '{}' doesn't exist.", path));
     }
 
-#ifdef _WIN32
-    HANDLE hFile = CreateFileA(path.c_str(),
-                               GENERIC_READ,
-                               FILE_SHARE_READ,
-                               nullptr,
-                               OPEN_EXISTING,
-                               FILE_ATTRIBUTE_NORMAL,
-                               nullptr);
+#ifdef JANK_WINDOWS_LIKE
+    HANDLE hFile{ CreateFileA(path.c_str(),
+                              GENERIC_READ,
+                              FILE_SHARE_READ,
+                              nullptr,
+                              OPEN_EXISTING,
+                              FILE_ATTRIBUTE_NORMAL,
+                              nullptr) };
 
     if(hFile == INVALID_HANDLE_VALUE)
     {
       return error::runtime_unable_to_open_file(util::format("Unable to open file '{}'.", path));
     }
 
-    LARGE_INTEGER fileSize;
+    LARGE_INTEGER fileSize{};
     if(!GetFileSizeEx(hFile, &fileSize))
     {
       CloseHandle(hFile);
       return error::internal_runtime_failure("Failed to get file size");
     }
 
-    HANDLE hMapping = CreateFileMappingA(hFile, nullptr, PAGE_READONLY, 0, 0, nullptr);
+    HANDLE hMapping{ CreateFileMappingA(hFile, nullptr, PAGE_READONLY, 0, 0, nullptr) };
 
     if(!hMapping)
     {
@@ -719,7 +717,7 @@ namespace jank::runtime::module
       return error::internal_runtime_failure("Failed to create file mapping");
     }
 
-    auto head = static_cast<char const *>(MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0));
+    auto head{ static_cast<char const *>(MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0)) };
     if(!head)
     {
       CloseHandle(hMapping);

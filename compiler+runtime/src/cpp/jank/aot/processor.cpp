@@ -115,7 +115,7 @@ int main(int argc, const char** argv)
   )");
 
     auto const tmp_dir{ std::filesystem::temp_directory_path() };
-    std::string main_file_path = (tmp_dir / "jank-main-XXXXXX").string();
+    std::string main_file_path{ (tmp_dir / "jank-main-XXXXXX").string() };
 
     auto const fd{ mkstemp(main_file_path.data()) };
     close(fd);
@@ -139,8 +139,7 @@ int main(int argc, const char** argv)
     auto const clang_dir{ std::filesystem::path{ clang_path_str.unwrap().c_str() }.parent_path() };
     compiler_args.emplace_back(strdup("-I"));
     compiler_args.emplace_back(strdup((clang_dir / "../include").string().c_str()));
-#ifdef __MINGW64__
-#else
+#ifndef __MINGW64__
     compiler_args.emplace_back(
       strdup(util::format("-Wl,-rpath,{}", (clang_dir / "../lib").string()).c_str()));
 #endif
@@ -221,8 +220,7 @@ int main(int argc, const char** argv)
     {
       compiler_args.push_back(strdup("-Wl,--export-dynamic"));
     }
-#ifdef _WIN32
-#else
+#ifndef JANK_WINDOWS_LIKE
     compiler_args.push_back(strdup("-rdynamic"));
 #endif
     /* TODO: Change this based on the CLI optimization level. */
@@ -359,7 +357,7 @@ int main(int argc, const char** argv)
     std::filesystem::create_directories(module_path.parent_path());
 
     auto const tmp{ std::filesystem::temp_directory_path() };
-    std::string path_tmp = (tmp / "jank-compile-XXXXXX").string();
+    std::string path_tmp{ (tmp / "jank-compile-XXXXXX").string() };
     mkstemp(path_tmp.data());
 
     {
@@ -371,8 +369,8 @@ int main(int argc, const char** argv)
     std::filesystem::path const jank_resource_dir{ util::resource_dir().c_str() };
     compiler_args.push_back("-include");
     auto const prelude_path{ jank_resource_dir / "include/cpp/jank/prelude.hpp" };
-    std::string const prelude_path_str = prelude_path.string();
-    std::string const module_path_str = module_path.string();
+    std::string const prelude_path_str{ prelude_path.string() };
+    std::string const module_path_str{ module_path.string() };
     compiler_args.push_back(prelude_path_str.c_str());
 
     compiler_args.push_back("-c");

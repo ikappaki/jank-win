@@ -41,13 +41,13 @@
                                   "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache")
                             (= "on" analyze)
                             (conj "-DCMAKE_CXX_CLANG_TIDY=clang-tidy-cache-wrapper"))
-          configure-cmd (apply util/bash-run "./bin/configure" configure-flags)
+          configure-cmd (str "./bin/configure " (clojure.string/join " " configure-flags))
           stats-cmd (if (= "on" analyze)
                       "clang-tidy-cache"
                       "ccache")]
       (util/quiet-shell {:dir compiler+runtime-dir
                          :extra-env exports}
-                        (util/bash-run stats-cmd " --zero-stats"))
+                        (str stats-cmd " --zero-stats"))
 
       (util/with-elapsed-time duration
         (util/quiet-shell {:dir compiler+runtime-dir
@@ -58,24 +58,24 @@
       (util/with-elapsed-time duration
         (util/quiet-shell {:dir compiler+runtime-dir
                            :extra-env exports}
-                          (util/bash-run "./bin/clean"))
+                          "./bin/clean")
         (util/log-info-with-time duration "Cleaned"))
 
       (util/with-elapsed-time duration
         (util/quiet-shell {:dir compiler+runtime-dir
                            :extra-env exports}
-                          (util/bash-run "./bin/compile"))
+                          "./bin/compile")
         (util/log-info-with-time duration "Compiled"))
 
       (util/quiet-shell {:dir compiler+runtime-dir
                          :extra-env exports}
-                        (util/bash-run stats-cmd " --show-stats"))
+                        (str stats-cmd " --show-stats"))
 
       (util/with-elapsed-time duration
         (util/quiet-shell {:dir compiler+runtime-dir
                            :extra-env (merge exports
                                              {"LLVM_PROFILE_FILE" (str compiler+runtime-dir "/build/jank-%p.profraw")})}
-                          (util/bash-run "./bin/test"))
+                          "./bin/test")
         (util/log-info-with-time duration "Tested")))))
 
 (when (= *file* (System/getProperty "babashka.file"))

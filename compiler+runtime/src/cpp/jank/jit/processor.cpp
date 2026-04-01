@@ -43,7 +43,7 @@ namespace jank::jit
   {
     return util::format("lib{}.so", lib);
   }
-#elif defined(_WIN32)
+#elif defined(JANK_WINDOWS_LIKE)
   {
     return util::format("{}.dll", lib);
   }

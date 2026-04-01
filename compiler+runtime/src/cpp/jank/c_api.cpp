@@ -1,7 +1,9 @@
 #include <cstdarg>
 #include <utility>
 
-#ifdef _WIN32
+#ifdef JANK_WINDOWS_LIKE
+  // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+  #define WIN32_LEAN_AND_MEAN 1
   #include <windows.h>
 #endif
 
@@ -1036,7 +1038,7 @@ extern "C"
   {
     JANK_TRY
     {
-#ifdef _WIN32
+#ifdef JANK_WINDOWS_LIKE
       std::setlocale(LC_CTYPE, ".UTF8");
       std::locale::global(std::locale(".UTF-8"));
       SetConsoleOutputCP(CP_UTF8);

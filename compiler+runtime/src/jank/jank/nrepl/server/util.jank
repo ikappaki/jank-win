@@ -15,10 +15,9 @@
   POSIX `unistd` function, using a portability symbol on Windows."
   [fname]
   `(defmacro ~fname [& args#]
-     (let [f# (if cpp/jank.win32
+     (let [f# (if (= cpp/jtl.current_platform cpp/jtl.platform.windows_like)
                 (symbol "cpp" (str "folly.portability.unistd." ~(name fname)))
-                (symbol "cpp" ~(name fname))
-                )]
+                (symbol "cpp" ~(name fname)))]
        `(~f# ~@args#))))
 ;; Create cross platform POSIX unistd bindings
 (def-unistd close)

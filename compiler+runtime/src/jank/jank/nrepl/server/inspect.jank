@@ -1,7 +1,7 @@
 (ns jank.nrepl.server.inspect)
 
 (cpp/raw "
-#ifdef _WIN32
+#ifdef JANK_WINDOWS_LIKE
 #include <cstdio>
 #else
 #include <iomanip>
@@ -13,7 +13,7 @@ namespace jank::nrepl::server::inspect
   inline std::string hash_to_hex_string(unsigned int i)
   {
 
-#ifdef _WIN32
+#ifdef JANK_WINDOWS_LIKE
     // MSYS2/clang64 JIT workaround: std::format emits 128-bit division helpers
     // which the JIT cannot resolve:
     //
