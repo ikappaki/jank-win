@@ -18,22 +18,6 @@
        raw
        fallback))))
 
-(defn bash-run
-  "Returns PATH wrapped for execution in Bash on Windows with ARGS passed to -c.
-   Returns PATH unchanged on other platforms."
-  [path & args]
-  (if (b.f/windows?)
-    (let [bash-exe (b.f/which "bash")]
-      (when-not bash-exe
-        (throw (ex-info "Unable to find bash." {})))
-      (let [cmd (str (b.f/unixify path)
-                     (when (seq args)
-                       (str " " (clojure.string/join " " args))))]
-        (str bash-exe " -c \"" cmd "\"")))
-    (str path
-         (when (seq args)
-           (str " " (clojure.string/join " " args))))))
-
 (defmacro string=
   "Compare L and R strings ignoring line ending differences."
   [l r]
@@ -53,11 +37,11 @@
           (recur rem-ms (rest units) (if val (conj result val) result)))))))
 
 (defn log-boundary [title]
-  (println "\n----------------" title "----------------")
+  (println "\n────────────────" title "────────────────")
   (summary/boundary title))
 
 (defn log-step [title]
-  (println "\n----" title "----")
+  (println "\n────" title "────")
   (summary/step title))
 
 (defn log [& args]
@@ -83,9 +67,30 @@
 (defn log-error-with-time [time-ms & args]
   (log "❌ " (apply str args) (str "(" (format-ms time-ms) ")")))
 
-(defn quiet-shell [props cmd]
-  ;;(println :props props :cmd cmd)
-  (let [proc @(b.p/process
+(defn command-make-portable
+  "Converts CMD into a form that can be executed portably across
+  supported platforms."
+  [cmd]
+  (if (b.f/windows?)
+    ;; Assumes an MSYS2 environment and runs the command via bash.
+    (let [bash-exe (b.f/which "bash")]
+      (when-not bash-exe
+        (throw (ex-info "Unable to find bash." {})))
+      (let [[prog & rest] (clojure.string/split cmd #"\s+")
+            unix-prog (b.f/unixify prog)
+            rebuilt (clojure.string/join " " (cons unix-prog rest))]
+        (str bash-exe " -c \"" rebuilt "\"")))
+    cmd))
+
+(defn quiet-shell
+  "Runs the shell string CMD in a cross-platform manner using
+  `babashka.process/process` with PROPS, capturing stdout and stderr
+  and producing a summary.  Returns the process on success.  On
+  failure, prints failed output, and exits the program with code 1."
+  [props cmd]
+  ;; (println :props props :cmd cmd)
+  (let [cmd (command-make-portable cmd)
+        proc @(b.p/process
                (merge {:out :string
                        :err :out}
                       props)

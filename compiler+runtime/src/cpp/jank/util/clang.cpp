@@ -33,8 +33,8 @@ namespace jank::util
   static bool is_clang_correct_version(std::filesystem::path const &path)
   {
     auto const tmp{ std::filesystem::temp_directory_path() };
-    std::string path_tmp = (tmp / "jank-clang-XXXXXX").string();
-    int const fd = mkstemp(path_tmp.data());
+    std::string path_tmp{ (tmp / "jank-clang-XXXXXX").string() };
+    int const fd{ mkstemp(path_tmp.data()) };
     close(fd);
     auto const proc_code{ llvm::sys::ExecuteAndWait(path.string(),
                                                     { path.string(), "--version" },
@@ -231,12 +231,13 @@ namespace jank::util
     auto const resource{ aot::find_resource("incremental.pch") };
     if(resource.is_some())
     {
-      static constexpr char virtual_path[] =
-#ifdef _WIN32
-        "j:/virtual/incremental.pch";
+      static constexpr char virtual_path[]{
+#ifdef JANK_WINDOWS_LIKE
+        "j:/virtual/incremental.pch"
 #else
-        "/virtual/incremental.pch";
+        "/virtual/incremental.pch"
 #endif
+      };
       runtime::__rt_ctx->jit_prc.vfs[virtual_path]
         = { resource.unwrap().data(), resource.unwrap().size() };
       return virtual_path;

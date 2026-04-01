@@ -18,7 +18,9 @@
 #include <jank/util/fmt.hpp>
 #include <jank/error/system.hpp>
 
-#ifdef _WIN32
+#ifdef JANK_WINDOWS_LIKE
+  // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+  #define WIN32_LEAN_AND_MEAN 1
   #include <windows.h>
 #endif
 
@@ -37,7 +39,7 @@ namespace jank::util
     {
       res = home;
     }
-#ifdef _WIN32
+#ifdef JANK_WINDOWS_LIKE
     else if(char const *userprofile = getenv("USERPROFILE"))
     {
       res = userprofile;
@@ -153,16 +155,15 @@ namespace jank::util
     return std::filesystem::canonical(path).string();
 #elif defined(__linux__)
     return std::filesystem::canonical("/proc/self/exe").string();
-#elif defined(_WIN32)
-    char path[MAX_PATH];
-    const DWORD size = GetModuleFileNameA(nullptr, path, MAX_PATH);
+#elif defined(JANK_WINDOWS_LIKE)
+    char path[MAX_PATH]{};
+    const DWORD size{ GetModuleFileNameA(nullptr, path, MAX_PATH) };
 
     if(size == 0)
     {
-      return std::string();
+      return {};
     }
-    std::string const spath(path, size);
-    return spath;
+    return { path, size };
 #else
     static_assert(false, "Unsupported platform");
 #endif
@@ -234,7 +235,7 @@ namespace jank::util
       if(sdk_path.empty())
       {
         auto const tmp{ std::filesystem::temp_directory_path() };
-        std::string path_tmp = (tmp / "jank-xcrun-XXXXXX").string();
+        std::string path_tmp{ (tmp / "jank-xcrun-XXXXXX").string() };
         mkstemp(path_tmp.data());
 
         auto const xcrun_path{ llvm::sys::findProgramByName("xcrun") };

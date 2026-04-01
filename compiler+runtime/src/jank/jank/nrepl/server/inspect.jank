@@ -1,29 +1,14 @@
 (ns jank.nrepl.server.inspect)
 
 (cpp/raw "
-#ifdef _WIN32
-#include <cstdio>
-#else
 #include <iomanip>
 #include <sstream>
-#endif
 
 namespace jank::nrepl::server::inspect
 {
   inline std::string hash_to_hex_string(unsigned int i)
   {
-
-#ifdef _WIN32
-    // MSYS2/clang64 JIT workaround: std::format emits 128-bit division helpers
-    // which the JIT cannot resolve:
-    //
-    // JIT session error: Symbols not found: [ __umodti3, __udivti3 ]
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), \"0x%x\", i);
-    return buf;
-#else
     return std::format(\"0x{:x}\", i);
-#endif
   }
 }
 ")

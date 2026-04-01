@@ -247,7 +247,7 @@ namespace jank
      * and we reuse the same file over and over. */
     auto const tmp{ std::filesystem::temp_directory_path() };
     std::string path_tmp{ (tmp / "jank-repl-XXXXXX").string() };
-    int const fd = mkstemp(path_tmp.data());
+    int const fd{ mkstemp(path_tmp.data()) };
     close(fd);
 
     auto const first_res_var{ __rt_ctx->find_var("clojure.core", "*1") };

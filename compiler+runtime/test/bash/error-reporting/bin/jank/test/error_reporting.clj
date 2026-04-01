@@ -49,7 +49,7 @@
   (when (:has-setup? test)
     (b.p/shell {:out :string
                 :dir (:dir test)}
-               (util/bash-run "./setup")))
+               (util/command-make-portable "./setup")))
   (println "running dir" (b.f/file-name (:dir test)))
   (let [res @(b.p/process {:out :string
                            :err :out

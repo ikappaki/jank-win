@@ -2190,9 +2190,10 @@ namespace jank::codegen
       auto personality_fn_type{ llvm::FunctionType::get(ctx->builder->getInt32Ty(),
                                                         /*isVarArg=*/true) };
 #if defined(__MINGW64__)
-      // Windows SEH exceptions are not supported yet.
-      // This is only to allow compilation; otherwise __gxx_personality_v0
-      // would be undefined.
+      /* Windows SEH exceptions are not supported yet.
+       * This is only to allow compilation; otherwise __gxx_personality_v0
+       * would be undefined.
+       */
       auto personality_fn{ llvm_module->getOrInsertFunction("__gxx_personality_seh0",
                                                             personality_fn_type) };
 #else

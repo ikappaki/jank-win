@@ -64,8 +64,8 @@ namespace jank::runtime::module
     jtl::immutable_string path;
   };
 
-#ifdef _WIN32
-  #include <windows.h>
+#ifdef JANK_WINDOWS_LIKE
+  using HANDLE = void *;
 
   struct HANDLES
   {
@@ -171,7 +171,7 @@ namespace jank::runtime::module
     };
 
     /* These separators match what the JVM does on each system. */
-#ifdef _WIN32
+#ifdef JANK_WINDOWS_LIKE
     static constexpr char module_separator{ ';' };
     static constexpr char const *module_separator_name{ "semicolon" };
 #else
