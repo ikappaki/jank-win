@@ -37,14 +37,12 @@
 
 namespace jank::runtime::module
 {
-
   using zip_ptr = std::unique_ptr<zip_t, decltype(&zip_close)>;
   using zip_entry_ptr = std::unique_ptr<zip_t, decltype(&zip_entry_close)>;
 
   /* This turns `foo_bar/spam/meow.cljc` into `foo-bar.spam.meow`. */
   jtl::immutable_string path_to_module(std::filesystem::path const &path)
   {
-    // static std::regex const slash{ "\\\\" };
     static std::regex const slash{ R"([\\/])" };
 
     auto const &s(runtime::demunge(path.string()));
@@ -577,7 +575,6 @@ namespace jank::runtime::module
   }
 
   file_view::~file_view()
-
   {
     reset();
   }
@@ -727,7 +724,6 @@ namespace jank::runtime::module
 
     return ok(
       file_view{ path, HANDLES(hFile, hMapping), head, static_cast<size_t>(fileSize.QuadPart) });
-
 #else
     auto const file_size(std::filesystem::file_size(path.c_str()));
     /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg) */

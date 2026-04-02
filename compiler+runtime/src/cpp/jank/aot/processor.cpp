@@ -145,7 +145,7 @@ int main(int argc, const char** argv)
 #endif
 
     std::filesystem::path const jank_path{ util::process_dir().c_str() };
-    std::string const jank_path_str = jank_path.string();
+    std::string const jank_path_str(jank_path.string());
     compiler_args.emplace_back(strdup("-L"));
     compiler_args.emplace_back(strdup(jank_path_str.c_str()));
 

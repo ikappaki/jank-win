@@ -1,5 +1,5 @@
 #include <filesystem>
-#if _WIN32
+#if JANK_WINDOWS_LIKE
   #include <fstream>
   #include <unordered_set>
 #endif
@@ -85,7 +85,7 @@ namespace jank::jit
                       "Test file needs to begin with pass- or fail- or throw- or warn- or skip-: ",
                       filename);
         ++test_count;
-#ifdef _WIN32
+#ifdef JANK_WINDOWS_LIKE
         // skip tests mentioned in file.
         static auto const windows_skips = [] {
           std::unordered_set<std::string> s;

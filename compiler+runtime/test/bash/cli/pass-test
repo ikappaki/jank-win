@@ -1,8 +1,8 @@
 #!/usr/bin/env bb
 
 (ns jank.test.cli
-  (:require [babashka.process :as proc]
-            [babashka.fs :as fs]
+  (:require [babashka.fs :as fs]
+            [babashka.process :as proc]
             [clojure.string]
             [clojure.test :as t :refer [deftest is]]))
 
