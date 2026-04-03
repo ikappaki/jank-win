@@ -1,5 +1,5 @@
 #include <filesystem>
-#if JANK_WINDOWS_LIKE
+#ifdef _WIN32
   #include <fstream>
   #include <unordered_set>
 #endif
