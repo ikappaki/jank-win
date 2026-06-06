@@ -2,6 +2,12 @@
   <img src="https://media.githubusercontent.com/media/jank-lang/jank/main/.github/img/banner.png" alt="jank banner" />
 </a>
 
+> **⚠️ Unofficial Fork — Windows Enhancements**
+>
+> This fork of [jank-lang/jank](https://github.com/jank-lang/jank) carries Windows-specific
+> changes pending upstream acceptance. The `main-win` branch (default) tracks official jank
+> with these changes applied on top. See [CHANGELOG-WIN.md](CHANGELOG-WIN.md) for details.
+
 <div align="center">
   <a href="https://clojurians.slack.com/archives/C03SRH97FDK" target="_blank"><img src="https://img.shields.io/badge/slack-%23jank-e01563.svg?style=flat&logo=slack&logoColor=fd893f&colorA=363636&colorB=363636" /></a>
   <a href="https://github.com/sponsors/jeaye" target="_blank"><img src="https://img.shields.io/github/sponsors/jeaye?style=flat&logo=github&logoColor=fd893f&colorA=363636&colorB=363636" /></a>

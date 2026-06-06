@@ -53,12 +53,10 @@ echo "Using ${make_j} cores to build"
 
 srcdir="${PWD}"
 
-llvm_url="https://github.com/jank-lang/llvm-project.git"
+llvm_url="https://github.com/ikappaki/llvm-project.git"
 llvm_version=22
-llvm_branch="jank-snapshot/llvm${llvm_version}"
-# 8164f1a0c17b192e133817436bdb07598b7402a3
-llvm_commit="8164f1a0c17b192e133817436bdb07598b7402a3"
-llvm_branch="jank"
+llvm_branch="support/jitlink-coff-seh-llvm-22"
+llvm_commit="7de447a8986c0ce843136e7a6bc87843f7c74c96"
 llvm_dest_dir="${srcdir}/llvm-install"
 llvm_build_dir="${srcdir}/llvm-build"
 if [[ -n "${MSYSTEM:-}" ]]; then
