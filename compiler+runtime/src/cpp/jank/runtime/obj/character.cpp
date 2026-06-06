@@ -52,9 +52,11 @@ namespace jank::runtime::obj
   {
   }
 
+  /* Converts the code point CH to its string representation.
+     Throws if CH is not a valid code point. */
   static jtl::immutable_string to_char(i64 const ch)
   {
-    if(ch > 0x10FFFF)
+    if(ch < 0x0 || ch > 0x10FFFF)
     {
       throw std::runtime_error{ util::format("Value out of range for char: {}", ch) };
     }

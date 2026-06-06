@@ -3,7 +3,7 @@
 (cpp/raw "namespace jank::cpp::try_::pass_catch_cpp_primitives { using unsigned_int = unsigned int; }")
 (cpp/raw "namespace jank::cpp::try_::pass_catch_cpp_primitives { using void_ptr = void*; }")
 (cpp/raw "namespace jank::cpp::try_::pass_catch_cpp_primitives { using void_ptr_ptr = void**; }")
-(cpp/raw "namespace jank::cpp::try_::pass_catch_cpp_primitives { unsigned long to_ulong(void* p) { return reinterpret_cast<unsigned long>(p); } }")
+(cpp/raw "namespace jank::cpp::try_::pass_catch_cpp_primitives { unsigned long long to_ulonglong(void* p) { return reinterpret_cast<unsigned long long>(p); } }")
 (cpp/raw "namespace jank::cpp::try_::pass_catch_cpp_primitives { void throw_char() { throw 'c'; } }")
 (cpp/raw "namespace jank::cpp::try_::pass_catch_cpp_primitives { void throw_double() { throw 1.23; } }")
 (cpp/raw "namespace jank::cpp::try_::pass_catch_cpp_primitives { void throw_float() { throw 0.5f; } }")

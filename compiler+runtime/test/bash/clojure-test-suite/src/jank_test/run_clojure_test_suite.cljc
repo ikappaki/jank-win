@@ -229,17 +229,10 @@
     clojure.core-test.zipmap
   ])
 
-(def windows? (= cpp/jtl.current_platform cpp/jtl.platform.windows_like))
-
 (defn -main []
-  (if windows?
-    ;; TODO: Enable once support for exception unwinding across JIT compiled frames is
-    ;; added for Windows.
-    (println :skip-clojure-test-suite-windows)
-    (do
-      (when (seq namespaces)
-        (apply require namespaces)
-        ;; TODO (t/run-all-tests) => Exception: "TODO: port all-ns"
-        (when-not (t/successful? (apply t/run-tests namespaces))
-          (throw "failed")))))
+  (when (seq namespaces)
+    (apply require namespaces)
+    ;; TODO (t/run-all-tests) => Exception: "TODO: port all-ns"
+    (when-not (t/successful? (apply t/run-tests namespaces))
+      (throw "failed")))
   (println :clojure-test-suite-successful))
