@@ -7,6 +7,8 @@
 > This fork of [jank-lang/jank](https://github.com/jank-lang/jank) carries Windows-specific
 > changes pending upstream acceptance. The `main-win` branch (default) tracks official jank
 > with these changes applied on top. See [CHANGELOG-WIN.md](CHANGELOG-WIN.md) for details.
+>
+> - 2026-05-26: SEH exception support via custom LLVM build, all Windows exception tests re-enabled
 
 <div align="center">
   <a href="https://clojurians.slack.com/archives/C03SRH97FDK" target="_blank"><img src="https://img.shields.io/badge/slack-%23jank-e01563.svg?style=flat&logo=slack&logoColor=fd893f&colorA=363636&colorB=363636" /></a>
