@@ -5,6 +5,11 @@ See [README.md](README.md) for context.
 
 Binaries: [jank-win-release](https://github.com/ikappaki/jank-win-release)
 
+## Untagged
+
+- Extend nREPL server with test-support hooks (header + implementation changes)
+- Add nREPL test suite: bencode, parsec, connection harness, and core server tests (`test/bash/nrepl-server/`)
+
 ## 2026-05-26 (80c2d4f06)
 
 **Synced with:** jank-lang/jank @ [`80c2d4f06`](https://github.com/jank-lang/jank/commit/80c2d4f0672d55d57102d34f5ad328b4ef551329)
