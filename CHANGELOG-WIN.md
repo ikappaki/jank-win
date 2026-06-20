@@ -5,7 +5,11 @@ See [README.md](README.md) for context.
 
 Binaries: [jank-win-release](https://github.com/ikappaki/jank-win-release)
 
-## Untagged
+## 2026-06-19 (56b77d7e9)
+
+**Synced with:** jank-lang/jank @ [`56b77d7e9`](https://github.com/jank-lang/jank/commit/56b77d7e9c555cfc59528124d199dbb54967b2c5)
+**Changeset:** [main-jank.26-06-19-56b77d7e9...main-win.26-06-19-56b77d7e9](https://github.com/ikappaki/jank-win/compare/main-jank.26-06-19-56b77d7e9...main-win.26-06-19-56b77d7e9)
+**Highlight:** nREPL test suite + fix future deref segfault (GC_NO_THREAD_REDIRECTS)
 
 - Add `-DGC_NO_THREAD_REDIRECTS` to fix `future` deref segfault on macOS ([#813](https://github.com/jank-lang/jank/discussions/813))
 - Extend nREPL server with test-support hooks (header + implementation changes)

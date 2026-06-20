@@ -9,6 +9,7 @@
 > with these changes applied on top. See [CHANGELOG-WIN.md](CHANGELOG-WIN.md) for details.
 >
 > - 2026-05-26: SEH exception support via custom LLVM build, all Windows exception tests re-enabled
+> - 2026-06-19: nREPL test suite + fix future deref segfault (GC_NO_THREAD_REDIRECTS)
 
 <div align="center">
   <a href="https://clojurians.slack.com/archives/C03SRH97FDK" target="_blank"><img src="https://img.shields.io/badge/slack-%23jank-e01563.svg?style=flat&logo=slack&logoColor=fd893f&colorA=363636&colorB=363636" /></a>
