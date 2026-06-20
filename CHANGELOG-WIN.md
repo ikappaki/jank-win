@@ -7,6 +7,7 @@ Binaries: [jank-win-release](https://github.com/ikappaki/jank-win-release)
 
 ## Untagged
 
+- Add `-DGC_NO_THREAD_REDIRECTS` to fix `future` deref segfault on macOS ([#813](https://github.com/jank-lang/jank/discussions/813))
 - Extend nREPL server with test-support hooks (header + implementation changes)
 - Add nREPL test suite: bencode, parsec, connection harness, and core server tests (`test/bash/nrepl-server/`)
 
